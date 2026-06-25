@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>周看板生成器</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <section class="home-screen" id="homeScreen">
+      <div class="home-topbar">
+        <div>
+          <p class="kicker">鸿儒周看板 · 首页</p>
+          <h1>所有周看板</h1>
+        </div>
+        <button class="primary-button" id="addWeekBtn" type="button">新建下一周</button>
+      </div>
+      <div class="week-list" id="weekList"></div>
+    </section>
+
+    <div class="app-shell">
+      <aside class="control-panel">
+        <div class="brand-block">
+          <p class="kicker">鸿儒周看板 · 互动版</p>
+          <h1>周看板生成器</h1>
+          <p class="week-label" id="weekLabel"></p>
+        </div>
+
+        <section class="panel-section">
+          <div class="section-title">
+            <h2>每周必要时间</h2>
+          </div>
+          <div class="necessary-settings" id="necessarySettings">
+            <div class="necessary-head">
+              <span></span>
+              <span>事项</span>
+              <span>周中</span>
+              <span></span>
+              <span>周末</span>
+              <span></span>
+            </div>
+            <label class="necessary-row">
+              <input type="checkbox" data-item="breakfast" />
+              <span>早饭</span>
+              <input type="time" data-item="breakfast" data-group="weekday" data-field="start" />
+              <input type="time" data-item="breakfast" data-group="weekday" data-field="end" />
+              <input type="time" data-item="breakfast" data-group="weekend" data-field="start" />
+              <input type="time" data-item="breakfast" data-group="weekend" data-field="end" />
+            </label>
+            <label class="necessary-row">
+              <input type="checkbox" data-item="lunch" />
+              <span>午饭</span>
+              <input type="time" data-item="lunch" data-group="weekday" data-field="start" />
+              <input type="time" data-item="lunch" data-group="weekday" data-field="end" />
+              <input type="time" data-item="lunch" data-group="weekend" data-field="start" />
+              <input type="time" data-item="lunch" data-group="weekend" data-field="end" />
+            </label>
+            <label class="necessary-row">
+              <input type="checkbox" data-item="dinner" />
+              <span>晚饭</span>
+              <input type="time" data-item="dinner" data-group="weekday" data-field="start" />
+              <input type="time" data-item="dinner" data-group="weekday" data-field="end" />
+              <input type="time" data-item="dinner" data-group="weekend" data-field="start" />
+              <input type="time" data-item="dinner" data-group="weekend" data-field="end" />
+            </label>
+            <label class="necessary-row">
+              <input type="checkbox" data-item="wash" />
+              <span>洗漱</span>
+              <input type="time" data-item="wash" data-group="weekday" data-field="start" />
+              <input type="time" data-item="wash" data-group="weekday" data-field="end" />
+              <input type="time" data-item="wash" data-group="weekend" data-field="start" />
+              <input type="time" data-item="wash" data-group="weekend" data-field="end" />
+            </label>
+          </div>
+          <p class="hint">周一到周五使用周中时间，周六周日使用周末时间。</p>
+        </section>
+
+        <section class="panel-section compact">
+          <h2>Reminders</h2>
+          <div class="quick-form">
+            <input id="quickTitle" placeholder="写一个待安排任务" />
+          </div>
+          <div class="action-row">
+            <button class="secondary-button" id="addQuickBtn" type="button">加入收件箱</button>
+          </div>
+          <p class="hint small-hint">加入后会出现在收件箱，安排到日程表后再选择重要等级。</p>
+        </section>
+
+        <section class="panel-section compact">
+          <h2>本周统计</h2>
+          <div class="stats-grid">
+            <div class="stat-card kind-important">
+              <small>重要</small>
+              <span id="statImportantHours">0h</span>
+              <em id="statImportantDone">0%</em>
+            </div>
+            <div class="stat-card kind-flexible">
+              <small>弹性</small>
+              <span id="statFlexibleHours">0h</span>
+              <em id="statFlexibleDone">0%</em>
+            </div>
+            <div class="stat-card">
+              <small>合计</small>
+              <span id="statTotalHours">0h</span>
+              <em id="statTotalDone">0%</em>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-section compact">
+          <h2>工具</h2>
+          <div class="tool-grid">
+            <button class="secondary-button" id="exportBtn" type="button">导出 JSON</button>
+            <label class="secondary-button file-button">
+              导入 JSON
+              <input id="importFile" type="file" accept="application/json" />
+            </label>
+            <button class="secondary-button" id="printBtn" type="button">打印</button>
+            <button class="danger-button" id="clearBtn" type="button">清空</button>
+          </div>
+        </section>
+      </aside>
+
+      <main class="board-area">
+        <div class="board-toolbar">
+          <div>
+            <p class="kicker">Eric D 周看板</p>
+            <h2 id="boardTitle">本周计划</h2>
+          </div>
+          <div class="view-tabs" role="tablist" aria-label="视图">
+            <button class="tab" id="homeBtn" type="button"><span class="tab-icon">⌂</span>首页</button>
+            <button class="tab active" data-view="board" type="button"><span class="tab-icon">▦</span>周看板</button>
+            <button class="tab" data-view="review" type="button"><span class="tab-icon">◉</span>复盘</button>
+          </div>
+        </div>
+
+        <section class="summary-table-wrap" id="boardView">
+          <table class="summary-table" aria-label="任务配额">
+            <colgroup>
+              <col class="sort-col" />
+              <col class="task-col" />
+              <col class="plan-col" />
+              <col class="actual-col" />
+              <col span="7" class="day-col" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>排序</th>
+                <th>待分配任务</th>
+                <th>计划</th>
+                <th>实际</th>
+                <th>周一</th>
+                <th>周二</th>
+                <th>周三</th>
+                <th>周四</th>
+                <th>周五</th>
+                <th>周六</th>
+                <th>周日</th>
+              </tr>
+            </thead>
+            <tbody id="summaryBody"></tbody>
+          </table>
+
+          <div class="schedule-shell">
+            <div class="schedule-grid" id="scheduleGrid"></div>
+          </div>
+        </section>
+
+        <section class="review-view hidden" id="reviewView">
+          <div class="review-header">
+            <h2>本周复盘</h2>
+            <p id="reviewRange"></p>
+          </div>
+          <div class="review-metrics" id="reviewMetrics"></div>
+          <div class="review-columns">
+            <section>
+              <h3>每天数据</h3>
+              <div class="review-day-list" id="reviewDayList"></div>
+            </section>
+            <section>
+              <h3>分类数据</h3>
+              <div class="review-kind-list" id="reviewKindList"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="taskDialog">
+      <form method="dialog" class="dialog-card">
+        <h2>编辑任务</h2>
+        <label>
+          名称
+          <input id="editTitle" />
+        </label>
+        <label>
+          日期
+          <select id="editDay">
+            <option value="0">周一</option>
+            <option value="1">周二</option>
+            <option value="2">周三</option>
+            <option value="3">周四</option>
+            <option value="4">周五</option>
+            <option value="5">周六</option>
+            <option value="6">周日</option>
+            <option value="-1">收件箱</option>
+          </select>
+        </label>
+        <div class="dialog-row">
+          <label>
+            开始
+            <input id="editStart" type="time" />
+          </label>
+          <label>
+            结束
+            <input id="editEnd" type="time" />
+          </label>
+        </div>
+        <label>
+          分类
+          <select id="editCategory">
+            <option>HOMEWORK</option>
+            <option>JAVA</option>
+            <option>ENGLISH</option>
+            <option>MATH</option>
+            <option>SCIENCE</option>
+            <option>SPORTS</option>
+            <option>OTHER</option>
+          </select>
+        </label>
+        <label>
+          类型
+          <select id="editKind">
+            <option value="important">重要 · 黄色</option>
+            <option value="flexible">弹性 · 绿色</option>
+            <option value="necessary">必要事项</option>
+            <option value="fixed">日程 · 灰色</option>
+          </select>
+        </label>
+        <label class="checkbox-line">
+          <input id="editDone" type="checkbox" />
+          已完成
+        </label>
+        <div class="dialog-actions">
+          <button class="danger-button" id="deleteTaskBtn" value="delete" type="button">删除</button>
+          <span></span>
+          <button class="secondary-button" value="cancel" type="submit">取消</button>
+          <button class="primary-button" id="saveTaskBtn" value="default" type="button">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
