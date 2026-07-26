@@ -8,6 +8,7 @@ const summaryOrderKey = "interactive-week-board-summary-order-v1";
 const sleepScheduleKey = "interactive-week-board-sleep-v1";
 const planTargetsKey = "interactive-week-board-plan-targets-v1";
 const necessaryScheduleKey = "interactive-week-board-necessary-v1";
+const actualRecordsKey = "interactive-week-board-actual-records-v1";
 const weeksKey = "interactive-week-board-weeks-v1";
 const activeWeekKey = "interactive-week-board-active-week-v1";
 
@@ -16,11 +17,17 @@ let summaryOrder = [];
 let sleepSchedule = [];
 let planTargets = {};
 let necessarySchedule = [];
+let actualRecords = [];
 let weeks = [];
 let currentWeekId = "";
 let editingId = null;
 let createDraft = null;
+let reviewCreateDraft = null;
 let summaryDrag = null;
+let undoStack = [];
+let activeTaskDrag = null;
+let activeSummaryGroupDrag = null;
+let actualDraftGroupKey = "";
 
 const demoText = `周一 6:30-7:00 BREAKFAST
 周一 8-9 SPANISH
@@ -321,6 +328,28 @@ function readLegacyObject(key, fallback = {}) {
   }
 }
 
+function normalizeActualRecordList(records) {
+  return records
+    .filter((record) => record && typeof record === "object")
+    .map((record) => ({
+      ...record,
+      id: record.id || uid(),
+      day: Number(record.day),
+      start: Number(record.start),
+      end: Number(record.end),
+      kind: ["important", "flexible", "fixed", "necessary"].includes(record.kind) ? record.kind : "fixed",
+    }))
+    .filter(
+      (record) =>
+        Number.isInteger(record.day) &&
+        record.day >= 0 &&
+        record.day < days.length &&
+        Number.isFinite(record.start) &&
+        Number.isFinite(record.end) &&
+        record.end > record.start,
+    );
+}
+
 function load() {
   try {
     const scopedTasks = readScopedArray(storageKey);
@@ -346,6 +375,8 @@ function load() {
   const legacyNecessary = currentWeekId === getWeekId() ? readLegacyArray(necessaryScheduleKey) : [];
   necessarySchedule = scopedNecessary.length ? scopedNecessary : legacyNecessary.length ? legacyNecessary : createDefaultNecessarySchedule();
   necessarySchedule = normalizeNecessarySchedule(necessarySchedule);
+
+  actualRecords = normalizeActualRecordList(readScopedArray(actualRecordsKey));
   tasks.forEach(normalizeTaskProgress);
   tasks.forEach(normalizeTaskKind);
   save();
@@ -353,6 +384,7 @@ function load() {
   saveSleepSchedule();
   savePlanTargets();
   saveNecessarySchedule();
+  saveActualRecords();
 }
 
 function saveSummaryOrder() {
@@ -371,12 +403,56 @@ function saveNecessarySchedule() {
   localStorage.setItem(scopedKey(necessaryScheduleKey), JSON.stringify(necessarySchedule));
 }
 
+function saveActualRecords() {
+  localStorage.setItem(scopedKey(actualRecordsKey), JSON.stringify(actualRecords));
+}
+
+function cloneValue(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function captureUndo() {
+  undoStack.push({
+    weekId: currentWeekId,
+    tasks: cloneValue(tasks),
+    summaryOrder: cloneValue(summaryOrder),
+    sleepSchedule: cloneValue(sleepSchedule),
+    planTargets: cloneValue(planTargets),
+    necessarySchedule: cloneValue(necessarySchedule),
+    actualRecords: cloneValue(actualRecords),
+  });
+  if (undoStack.length > 80) undoStack.shift();
+}
+
+function undoLastChange() {
+  const snapshot = undoStack.pop();
+  if (!snapshot) return;
+  if (snapshot.weekId !== currentWeekId) {
+    currentWeekId = snapshot.weekId;
+    localStorage.setItem(activeWeekKey, currentWeekId);
+  }
+  tasks = snapshot.tasks;
+  summaryOrder = snapshot.summaryOrder;
+  sleepSchedule = snapshot.sleepSchedule;
+  planTargets = snapshot.planTargets;
+  necessarySchedule = snapshot.necessarySchedule;
+  actualRecords = snapshot.actualRecords || [];
+  save();
+  saveSummaryOrder();
+  saveSleepSchedule();
+  savePlanTargets();
+  saveNecessarySchedule();
+  saveActualRecords();
+  render();
+}
+
 function createDefaultSleepSchedule() {
   return days.map(() => ({ start: "23:00", end: "07:00" }));
 }
 
 function createDefaultNecessarySchedule() {
   return [
+    { id: "morningWash", title: "早洗漱", enabled: true, weekday: { start: "06:30", end: "07:00" }, weekend: { start: "08:00", end: "08:30" } },
     { id: "breakfast", title: "早饭", enabled: true, weekday: { start: "07:00", end: "07:30" }, weekend: { start: "08:30", end: "09:00" } },
     { id: "lunch", title: "午饭", enabled: true, weekday: { start: "12:00", end: "12:30" }, weekend: { start: "12:30", end: "13:00" } },
     { id: "dinner", title: "晚饭", enabled: true, weekday: { start: "18:00", end: "18:30" }, weekend: { start: "18:30", end: "19:00" } },
@@ -412,6 +488,11 @@ function taskUnitCount(task) {
   }
   if (task.start === null || task.end === null || task.end <= task.start) return 0;
   return Math.max(1, Math.ceil((task.end - task.start) / 30));
+}
+
+function durationMinutes(entry) {
+  if (!Number.isFinite(entry.start) || !Number.isFinite(entry.end) || entry.end <= entry.start) return 0;
+  return entry.end - entry.start;
 }
 
 function inboxUnitCount(task) {
@@ -461,21 +542,40 @@ function toggleTaskUnit(taskId, unit) {
 
 function visibleCheckUnits(task) {
   normalizeTaskProgress(task);
-  return taskUnitCount(task) ? task.completedUnits.length + 1 : 0;
+  const plannedUnits = taskUnitCount(task);
+  if (!plannedUnits) return 0;
+  const progressMinutes = effectiveTaskProgressMinutes(task);
+  const coveredUnits = Math.ceil(progressMinutes / 30);
+  const extraUnit = progressMinutes >= durationMinutes(task) ? 1 : 0;
+  return Math.max(plannedUnits, coveredUnits + extraUnit, task.completedUnits.length + 1);
 }
 
 function setSummaryGroupKind(groupKey, kind) {
+  const { label: category } = parseSummaryGroupKey(groupKey);
+  const nextGroupKey = `${kind}:${category}`;
   tasks.forEach((task) => {
     if (summaryGroupKey(task) === groupKey) task.kind = kind;
   });
+  migrateSummaryGroupKey(groupKey, nextGroupKey);
+}
+
+function migrateSummaryGroupKey(groupKey, nextGroupKey) {
+  if (!groupKey || !nextGroupKey || groupKey === nextGroupKey) return;
   const oldTarget = planTargets[groupKey];
   if (oldTarget !== undefined) {
     delete planTargets[groupKey];
-    const [, category] = groupKey.split(":");
-    planTargets[`${kind}:${category}`] = oldTarget;
-    savePlanTargets();
+    planTargets[nextGroupKey] = oldTarget;
   }
-  summaryOrder = summaryOrder.filter((key) => key !== groupKey);
+  const { kind: nextKind } = parseSummaryGroupKey(nextGroupKey);
+  actualRecords.forEach((record) => {
+    if (actualRecordGroupKey(record) === groupKey) {
+      record.groupKey = nextGroupKey;
+      record.kind = nextKind;
+    }
+  });
+  summaryOrder = [...new Set(summaryOrder.map((key) => (key === groupKey ? nextGroupKey : key)))];
+  savePlanTargets();
+  saveActualRecords();
   saveSummaryOrder();
 }
 
@@ -513,7 +613,7 @@ function syncPlanBuffer(groupKey) {
   const targetUnits = Number(planTargets[groupKey] || 0);
   const extraUnits = Math.max(0, targetUnits - scheduledUnits);
   const buffers = groupTasks.filter((task) => task.day < 0 && task.start === null && task.end === null && task.isPlanBuffer);
-  const [kind, category] = groupKey.split(":");
+  const { kind, label: category } = parseSummaryGroupKey(groupKey);
 
   if (extraUnits > 0) {
     const buffer = buffers[0];
@@ -546,8 +646,109 @@ function syncPlanBuffer(groupKey) {
 
 function summaryGroupKey(task) {
   normalizeTaskKind(task);
+  return `${task.kind}:${summaryGroupLabel(task)}`;
+}
+
+function summaryGroupLabel(task) {
   const category = task.category || inferCategory(task.title);
-  return `${task.kind}:${category}`;
+  if (category && category !== "OTHER") return category;
+  return (task.title || "OTHER").replace(/:/g, " ").trim() || "OTHER";
+}
+
+function actualRecordGroupKey(record) {
+  if (record.groupKey) return record.groupKey;
+  return summaryGroupKey({
+    title: record.title || "OTHER",
+    category: inferCategory(record.title || ""),
+    kind: record.kind || "fixed",
+  });
+}
+
+function actualMinutesForGroup(groupKey) {
+  return actualRecordsForGroup(groupKey).reduce((sum, record) => sum + durationMinutes(record), 0);
+}
+
+function actualRecordsForGroup(groupKey) {
+  return actualRecords.filter((record) => actualRecordGroupKey(record) === groupKey);
+}
+
+function effectiveActualMinutesForGroup(groupKey, groupTasks) {
+  const records = actualRecordsForGroup(groupKey);
+  let totalMinutes = groupTasks
+    .filter((task) => task.day < 0)
+    .reduce((sum, task) => sum + completedUnitCount(task) * 30, 0);
+  days.forEach((_, day) => {
+    const recordedMinutes = records
+      .filter((record) => record.day === day)
+      .reduce((sum, record) => sum + durationMinutes(record), 0);
+    const checkedMinutes = groupTasks
+      .filter((task) => task.day === day)
+      .reduce((sum, task) => sum + completedUnitCount(task) * 30, 0);
+    totalMinutes += Math.max(recordedMinutes, checkedMinutes);
+  });
+  return totalMinutes;
+}
+
+function actualRecordsForTaskDay(task) {
+  if (task.day < 0) return [];
+  const groupKey = summaryGroupKey(task);
+  return actualRecords.filter((record) => record.day === task.day && actualRecordGroupKey(record) === groupKey);
+}
+
+function recordedMinutesForTask(task) {
+  const records = actualRecordsForTaskDay(task);
+  if (!records.length) return null;
+
+  const groupKey = summaryGroupKey(task);
+  const dayTasks = tasks
+    .filter(
+      (item) =>
+        item.day === task.day &&
+        item.start !== null &&
+        item.end !== null &&
+        item.end > item.start &&
+        summaryGroupKey(item) === groupKey,
+    )
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+  let remaining = records.reduce((sum, record) => sum + durationMinutes(record), 0);
+
+  for (let index = 0; index < dayTasks.length; index += 1) {
+    const item = dayTasks[index];
+    const plannedMinutes = durationMinutes(item);
+    const allocation = index === dayTasks.length - 1 ? Math.max(0, remaining) : Math.min(Math.max(0, remaining), plannedMinutes);
+    if (item.id === task.id) return allocation;
+    remaining = Math.max(0, remaining - plannedMinutes);
+  }
+  return 0;
+}
+
+function effectiveTaskProgressMinutes(task) {
+  const recordedMinutes = recordedMinutesForTask(task);
+  const checkedMinutes = completedUnitCount(task) * 30;
+  return recordedMinutes === null ? checkedMinutes : Math.max(recordedMinutes, checkedMinutes);
+}
+
+function taskUnitProgress(task, unit) {
+  const recordedMinutes = recordedMinutesForTask(task);
+  if (recordedMinutes === null) return task.completedUnits.includes(unit) ? 1 : 0;
+  const recordedProgress = Math.max(0, Math.min(1, (recordedMinutes - unit * 30) / 30));
+  return Math.max(recordedProgress, task.completedUnits.includes(unit) ? 1 : 0);
+}
+
+function isTaskEffectivelyDone(task) {
+  const plannedMinutes = durationMinutes(task);
+  if (!plannedMinutes) return isTaskDone(task);
+  return effectiveTaskProgressMinutes(task) >= plannedMinutes;
+}
+
+function formatHalfHourBlocks(minutes) {
+  const blocks = minutes / 30;
+  return Number.isInteger(blocks) ? String(blocks) : blocks.toFixed(1);
+}
+
+function parseSummaryGroupKey(groupKey) {
+  const [kind, ...labelParts] = groupKey.split(":");
+  return { kind, label: labelParts.join(":") };
 }
 
 function groupedByCategory() {
@@ -563,7 +764,7 @@ function groupedByCategory() {
       map.get(key).push(task);
     });
   const groups = [...map.entries()].map(([key, categoryTasks]) => {
-    const [kind, category] = key.split(":");
+    const { kind, label: category } = parseSummaryGroupKey(key);
     return { key, kind, category, categoryTasks };
   });
   const visibleKeys = groups.map((group) => group.key);
@@ -575,14 +776,16 @@ function renderSummary() {
   reconcilePlanBuffers();
   const body = $("#summaryBody");
   body.innerHTML = "";
+  renderSummaryDayTotals();
   groupedByCategory().forEach(({ key, kind, category, categoryTasks }, index) => {
     const row = document.createElement("tr");
     const groupKey = `${kind}:${category}`;
     row.className = "summary-row";
     row.dataset.group = key;
+    row.draggable = true;
     const totalUnits = getGroupPlanUnits(groupKey, categoryTasks);
-    const doneUnits = categoryTasks.reduce((sum, task) => sum + completedUnitCount(task), 0);
-    const groupComplete = totalUnits > 0 && doneUnits >= totalUnits;
+    const actualMinutes = effectiveActualMinutesForGroup(groupKey, categoryTasks);
+    const groupComplete = totalUnits > 0 && actualMinutes >= totalUnits * 30;
     row.innerHTML = `
       <td class="summary-rank" title="拖拽排序">${index + 1}</td>
       <td class="summary-task ${taskKindClass(kind)}">
@@ -596,31 +799,72 @@ function renderSummary() {
           </select>
         </div>
       </td>
-      <td><input class="plan-input" data-group="${escapeHtml(groupKey)}" type="number" min="${scheduledUnitCount(
-        categoryTasks,
-      )}" step="1" value="${totalUnits}" aria-label="调整计划" /><span class="plan-unit">*30</span></td>
-      <td class="${groupComplete ? "actual-complete" : ""}">${doneUnits}*30</td>
+      <td>
+        <div class="plan-cell-metric">
+          <input class="plan-input" data-group="${escapeHtml(groupKey)}" type="number" min="${scheduledUnitCount(
+            categoryTasks,
+          )}" step="1" value="${totalUnits}" aria-label="调整计划" />
+          <span class="plan-unit">格 = ${formatDuration(totalUnits * 30)}</span>
+        </div>
+      </td>
+      <td class="${groupComplete ? "actual-complete" : ""}">
+        <div class="actual-cell-metric">
+          <strong>${formatHalfHourBlocks(actualMinutes)}格</strong>
+          <small>${formatDuration(actualMinutes)}</small>
+        </div>
+      </td>
       ${days
         .map((_, day) => {
           const dayTasks = categoryTasks.filter((task) => task.day === day);
-          return `<td><div class="check-strip">${dayTasks
-            .map((task) =>
-              Array.from({ length: visibleCheckUnits(task) }, (_, unit) => {
-                const done = task.completedUnits.includes(unit);
-                return `<button class="mini-check ${done ? "done" : ""}" data-id="${task.id}" data-unit="${unit}" title="${escapeHtml(
-                  task.title,
-                )} ${fromMinutes(task.start + unit * 30)}"></button>`;
-              }).join(""),
-            )
-            .join("")}</div></td>`;
+          const dayUnits = dayTasks.reduce((sum, task) => sum + taskUnitCount(task), 0);
+          return `
+            <td>
+              <div class="day-allocation ${dayUnits ? "" : "is-empty"}">
+                <span class="day-grid-count">${dayUnits}格</span>
+                <div class="check-strip">${dayTasks
+                  .map((task) =>
+                    Array.from({ length: visibleCheckUnits(task) }, (_, unit) => {
+                      const progress = taskUnitProgress(task, unit);
+                      const done = progress >= 1;
+                      const partial = progress > 0 && progress < 1;
+                      return `<button class="mini-check ${done ? "done" : ""} ${partial ? "partial" : ""}" ${
+                        partial ? `style="--unit-progress: ${Math.round(progress * 100)}%"` : ""
+                      } data-id="${task.id}" data-unit="${unit}" title="${escapeHtml(
+                        task.title,
+                      )} ${fromMinutes(task.start + unit * 30)}"></button>`;
+                    }).join(""),
+                  )
+                  .join("")}</div>
+              </div>
+            </td>
+          `;
         })
         .join("")}
     `;
     body.appendChild(row);
   });
 
+  body.querySelectorAll(".summary-row").forEach((row) => {
+    row.addEventListener("dragstart", (event) => {
+      if (event.target.closest("select, button, input")) {
+        event.preventDefault();
+        return;
+      }
+      activeSummaryGroupDrag = { groupKey: row.dataset.group };
+      event.dataTransfer.setData("application/x-summary-group", row.dataset.group);
+      event.dataTransfer.effectAllowed = "move";
+      row.classList.add("summary-dragging-delete");
+    });
+    row.addEventListener("dragend", () => {
+      activeSummaryGroupDrag = null;
+      row.classList.remove("summary-dragging-delete");
+      document.querySelector(".control-panel")?.classList.remove("delete-drag-over");
+    });
+  });
+
   body.querySelectorAll(".mini-check").forEach((check) => {
     check.addEventListener("click", () => {
+      captureUndo();
       toggleTaskUnit(check.dataset.id, Number(check.dataset.unit));
       save();
       render();
@@ -628,6 +872,7 @@ function renderSummary() {
   });
   body.querySelectorAll(".summary-kind-select").forEach((select) => {
     select.addEventListener("change", () => {
+      captureUndo();
       setSummaryGroupKind(select.dataset.group, select.value);
       save();
       render();
@@ -639,6 +884,22 @@ function renderSummary() {
     input.addEventListener("blur", () => applyPlanInput(input, true));
   });
   bindSummaryRowSorting(body);
+}
+
+function renderSummaryDayTotals() {
+  const trackedTasks = tasks.filter((task) => {
+    normalizeTaskKind(task);
+    return ["important", "flexible"].includes(task.kind) && task.day >= 0 && task.start !== null && task.end !== null;
+  });
+
+  days.forEach((_, day) => {
+    const units = trackedTasks
+      .filter((task) => task.day === day)
+      .reduce((sum, task) => sum + taskUnitCount(task), 0);
+    const header = document.querySelector(`th[data-summary-day="${day}"]`);
+    const count = header?.querySelector(".day-total-count");
+    if (count) count.textContent = `${units}格 · ${formatDuration(units * 30)}`;
+  });
 }
 
 function reconcilePlanBuffers() {
@@ -657,8 +918,11 @@ function applyPlanInput(input, shouldPrompt) {
     }
     return;
   }
+  captureUndo();
   if (setGroupPlanUnits(input.dataset.group, units)) {
     save();
+  } else {
+    undoStack.pop();
   }
   render();
 }
@@ -669,6 +933,7 @@ function bindSummaryRowSorting(body) {
       if (event.target.closest("select, button, input")) {
         return;
       }
+      if (!event.target.closest(".summary-rank")) return;
       event.preventDefault();
       startSummaryDrag(event, body, row);
     });
@@ -722,6 +987,7 @@ function handleSummaryDragEnd() {
   const { body, ghost } = summaryDrag;
   ghost.remove();
   body.querySelectorAll(".summary-row").forEach((row) => row.classList.remove("drag-placeholder"));
+  captureUndo();
   summaryOrder = [...body.querySelectorAll(".summary-row")].map((row) => row.dataset.group);
   summaryDrag = null;
   saveSummaryOrder();
@@ -748,9 +1014,14 @@ function createTaskCard(task, mode = "stack") {
   const card = document.createElement("div");
   normalizeTaskKind(task);
   const canCheck = task.kind !== "necessary";
+  const progressMinutes = canCheck ? effectiveTaskProgressMinutes(task) : 0;
+  const plannedMinutes = durationMinutes(task);
+  const progressPercent = plannedMinutes ? Math.min(100, Math.round((progressMinutes / plannedMinutes) * 100)) : 0;
+  const effectivelyDone = canCheck && isTaskEffectivelyDone(task);
   card.className = `task-card ${mode === "calendar" ? "calendar-task" : ""} ${categoryClass(task.category)} ${taskKindClass(task.kind)} ${
-    canCheck && isTaskDone(task) ? "done" : ""
-  }`;
+    effectivelyDone ? "done" : ""
+  } ${progressPercent > 0 && !effectivelyDone ? "has-progress" : ""}`;
+  if (progressPercent > 0 && !effectivelyDone) card.style.setProperty("--progress", `${progressPercent}%`);
   card.draggable = true;
   card.dataset.id = task.id;
   const needLabel = mode === "calendar" ? "" : `<span class="task-needed">还需 ${inboxUnitCount(task)}*30</span>`;
@@ -763,11 +1034,21 @@ function createTaskCard(task, mode = "stack") {
     </div>
   `;
   card.addEventListener("dragstart", (event) => {
+    activeTaskDrag = {
+      id: task.id,
+      origin: task.day < 0 || task.start === null || task.end === null ? "inbox" : "schedule",
+    };
     event.dataTransfer.setData("text/plain", task.id);
+    event.dataTransfer.setData("application/x-task-origin", activeTaskDrag.origin);
+  });
+  card.addEventListener("dragend", () => {
+    activeTaskDrag = null;
+    document.querySelector(".control-panel")?.classList.remove("delete-drag-over");
   });
   card.querySelector("button")?.addEventListener("click", (event) => {
     event.stopPropagation();
-    setTaskDone(task, !isTaskDone(task));
+    captureUndo();
+    setTaskDone(task, !isTaskEffectivelyDone(task));
     save();
     render();
   });
@@ -826,6 +1107,7 @@ function renderSchedule() {
   `;
   sleepControls.querySelectorAll("input").forEach((input) => {
     input.addEventListener("change", () => {
+      captureUndo();
       sleepSchedule[Number(input.dataset.day)][input.dataset.field] = input.value;
       saveSleepSchedule();
       render();
@@ -880,6 +1162,7 @@ function renderSchedule() {
       column.appendChild(card);
     });
 
+    renderUnplannedActualBlocks(column, day);
     grid.appendChild(column);
   });
 }
@@ -888,7 +1171,7 @@ function addColumnCreateHandlers(column) {
   column.addEventListener("mousedown", (event) => {
     if (event.button !== 0 || event.target.closest(".task-card")) return;
     event.preventDefault();
-    const start = snapCalendarMinutes(event.clientY, column);
+    const start = Math.min(calendarEnd - 15, snapCalendarMinutes(event.clientY, column));
     const draft = document.createElement("div");
     draft.className = "draft-task";
     column.appendChild(draft);
@@ -934,6 +1217,7 @@ function handleCreateEnd(event) {
     done: false,
     completedUnits: [],
   };
+  captureUndo();
   tasks.push(newTask);
   save();
   render();
@@ -1018,6 +1302,46 @@ function renderNecessaryBlocks(column, day) {
     });
 }
 
+function actualRecordHasPlannedTask(record) {
+  if (record.kind === "necessary") return false;
+  const groupKey = actualRecordGroupKey(record);
+  return tasks.some(
+    (task) =>
+      task.day === record.day &&
+      task.start !== null &&
+      task.end !== null &&
+      task.end > task.start &&
+      summaryGroupKey(task) === groupKey,
+  );
+}
+
+function renderUnplannedActualBlocks(column, day) {
+  actualRecords
+    .filter(
+      (record) =>
+        record.day === day &&
+        !actualRecordHasPlannedTask(record) &&
+        record.end > calendarStart &&
+        record.start < calendarEnd,
+    )
+    .forEach((record) => {
+      const top = (Math.max(record.start, calendarStart) - calendarStart) * pxPerMinute;
+      const bottom = (Math.min(record.end, calendarEnd) - calendarStart) * pxPerMinute;
+      const block = document.createElement("div");
+      block.className = `task-card calendar-task actual-only-record ${taskKindClass(record.kind)}`;
+      block.style.top = `${top}px`;
+      block.style.height = `${Math.max(30, bottom - top)}px`;
+      block.innerHTML = `
+        <div>
+          <strong>${escapeHtml(record.title)}</strong>
+          <span class="task-time">${fromMinutes(record.start)}-${fromMinutes(record.end)}</span>
+        </div>
+      `;
+      block.title = `复盘实际记录：${record.title}`;
+      column.appendChild(block);
+    });
+}
+
 function getSleepSegments(day) {
   const current = sleepSchedule[day] || { start: "23:00", end: "07:00" };
   const previous = sleepSchedule[(day + 6) % 7] || current;
@@ -1056,6 +1380,7 @@ function addColumnDropHandlers(column) {
     const id = event.dataTransfer.getData("text/plain");
     const task = tasks.find((item) => item.id === id);
     if (!task) return;
+    captureUndo();
     const oldDuration = task.start !== null && task.end !== null ? task.end - task.start : inboxUnitCount(task) * 30;
     const snappedMinutes = snapCalendarMinutes(event.clientY, column);
     task.day = Number(column.dataset.day);
@@ -1078,6 +1403,7 @@ function addInboxDropHandlers(panel) {
     const id = event.dataTransfer.getData("text/plain");
     const task = tasks.find((item) => item.id === id);
     if (!task) return;
+    captureUndo();
     task.day = -1;
     task.start = null;
     task.end = null;
@@ -1086,14 +1412,79 @@ function addInboxDropHandlers(panel) {
   });
 }
 
-function renderStats() {
-  const scheduled = tasks.filter((task) => {
-    normalizeTaskKind(task);
-    return !["fixed", "necessary"].includes(task.kind) && task.day >= 0 && task.start !== null && task.end !== null;
+function bindDeleteDropZone() {
+  const panel = document.querySelector(".control-panel");
+  if (!panel) return;
+
+  const getDeletePayload = (event) => {
+    const groupKey = activeSummaryGroupDrag?.groupKey || event.dataTransfer.getData("application/x-summary-group");
+    if (groupKey) {
+      const groupTasks = tasks.filter((item) => summaryGroupKey(item) === groupKey);
+      if (groupTasks.length) return { type: "summary-group", groupKey, tasks: groupTasks };
+    }
+
+    const id = activeTaskDrag?.id || event.dataTransfer.getData("text/plain");
+    const origin = activeTaskDrag?.origin || event.dataTransfer.getData("application/x-task-origin");
+    const task = tasks.find((item) => item.id === id);
+    if (!task || origin !== "inbox") return null;
+    return task.day < 0 || task.start === null || task.end === null ? { type: "inbox-task", task } : null;
+  };
+
+  panel.addEventListener("dragover", (event) => {
+    if (!getDeletePayload(event)) return;
+    event.preventDefault();
+    panel.classList.add("delete-drag-over");
   });
-  const important = buildStat(scheduled.filter((task) => task.kind === "important"));
-  const flexible = buildStat(scheduled.filter((task) => task.kind === "flexible"));
-  const total = buildStat(scheduled);
+
+  panel.addEventListener("dragleave", (event) => {
+    if (panel.contains(event.relatedTarget)) return;
+    panel.classList.remove("delete-drag-over");
+  });
+
+  panel.addEventListener("drop", (event) => {
+    const payload = getDeletePayload(event);
+    if (!payload) return;
+    event.preventDefault();
+    panel.classList.remove("delete-drag-over");
+    captureUndo();
+
+    if (payload.type === "summary-group") {
+      tasks = tasks.filter((item) => summaryGroupKey(item) !== payload.groupKey);
+      delete planTargets[payload.groupKey];
+      summaryOrder = summaryOrder.filter((key) => key !== payload.groupKey);
+      savePlanTargets();
+      saveSummaryOrder();
+    } else {
+      const { task } = payload;
+      const groupKey = summaryGroupKey(task);
+      const removedUnits = taskUnitCount(task);
+      tasks = tasks.filter((item) => item.id !== task.id);
+      if (planTargets[groupKey] !== undefined) {
+        const groupTasks = tasks.filter((item) => summaryGroupKey(item) === groupKey);
+        const scheduledUnits = scheduledUnitCount(groupTasks);
+        planTargets[groupKey] = Math.max(scheduledUnits, Number(planTargets[groupKey] || 0) - removedUnits);
+        syncPlanBuffer(groupKey);
+        if (!tasks.some((item) => summaryGroupKey(item) === groupKey)) delete planTargets[groupKey];
+        savePlanTargets();
+      }
+    }
+
+    activeTaskDrag = null;
+    activeSummaryGroupDrag = null;
+    save();
+    render();
+  });
+}
+
+function renderStats() {
+  const planTotals = getReviewPlanTotals(getReviewPlannedEntries());
+  const actualTotals = getReviewActualTotals();
+  const important = buildStat(planTotals.byKind.important, actualTotals.byKind.important);
+  const flexible = buildStat(planTotals.byKind.flexible, actualTotals.byKind.flexible);
+  const total = buildStat(
+    planTotals.byKind.important + planTotals.byKind.flexible,
+    actualTotals.byKind.important + actualTotals.byKind.flexible,
+  );
   $("#statImportantHours").textContent = important.hours;
   $("#statImportantDone").textContent = important.done;
   $("#statFlexibleHours").textContent = flexible.hours;
@@ -1105,6 +1496,18 @@ function renderStats() {
 function formatUnits(units) {
   const hours = (units * 30) / 60;
   return `${hours.toFixed(units % 2 ? 1 : 0)}h`;
+}
+
+function formatDuration(minutes) {
+  const rounded = Math.round(minutes);
+  const sign = rounded < 0 ? "-" : "";
+  const absolute = Math.abs(rounded);
+  const hoursPart = Math.floor(absolute / 60);
+  const minutesPart = absolute % 60;
+  if (!hoursPart && !minutesPart) return "0h";
+  if (!hoursPart) return `${sign}${minutesPart}m`;
+  if (!minutesPart) return `${sign}${hoursPart}h`;
+  return `${sign}${hoursPart}h ${minutesPart}m`;
 }
 
 function ratioPercent(value, max) {
@@ -1128,32 +1531,34 @@ function renderReview() {
   const kindList = $("#reviewKindList");
   if (!metrics || !dayList || !kindList) return;
 
-  const scheduled = tasks.filter((task) => task.day >= 0 && task.start !== null && task.end !== null);
-  const inboxTasks = tasks.filter((task) => task.day < 0 || task.start === null || task.end === null);
-  const tracked = tasks.filter((task) => {
-    normalizeTaskKind(task);
-    return !["fixed", "necessary"].includes(task.kind);
-  });
-  const plannedUnits = tracked.reduce((sum, task) => sum + taskUnitCount(task), 0);
-  const doneUnits = tracked.reduce((sum, task) => sum + completedUnitCount(task), 0);
-  const completion = plannedUnits ? Math.round((doneUnits / plannedUnits) * 100) : 0;
+  const plannedEntries = getReviewPlannedEntries();
+  const planTotals = getReviewPlanTotals(plannedEntries);
+  const actualTotals = getReviewActualTotals();
+  const plannedMinutes = planTotals.totalMinutes;
+  const actualMinutes = actualTotals.totalMinutes;
+  const completion = ratioPercent(actualMinutes, plannedMinutes);
+  const difference = actualMinutes - plannedMinutes;
+  const differenceLabel = `${difference > 0 ? "+" : ""}${formatDuration(difference)}`;
   const metricRows = [
-    ["任务", "总任务", tasks.length],
-    ["排", "已安排", scheduled.length],
-    ["箱", "待安排", inboxTasks.length],
-    ["计", "计划时间", formatUnits(plannedUnits)],
-    ["完", "完成时间", formatUnits(doneUnits)],
+    ["计", "计划", `${formatHalfHourBlocks(plannedMinutes)}格 · ${formatDuration(plannedMinutes)}`],
+    ["实", "实际", `${formatHalfHourBlocks(actualMinutes)}格 · ${formatDuration(actualMinutes)}`],
+    ["差", "实际 - 计划", differenceLabel],
+    ["录", "实际记录", actualRecords.length],
+    ["待", "待分配时间", formatDuration(planTotals.pendingMinutes)],
   ];
 
   $("#reviewRange").textContent = getWeekRange();
+  $("#reviewBoardCompareSummary").textContent = `已排 ${formatDuration(planTotals.scheduledMinutes)} · 待分配 ${formatDuration(
+    planTotals.pendingMinutes,
+  )} · 1格 = 30分钟`;
   metrics.innerHTML = `
     <div class="review-progress-card">
-      <div class="review-ring" style="--percent: ${completion}">
+      <div class="review-ring ${completion > 100 ? "over-complete" : ""}" style="--percent: ${Math.min(completion, 100)}">
         <span>${completion}%</span>
       </div>
       <div>
-        <small>完成率</small>
-        <strong>${formatUnits(doneUnits)} / ${formatUnits(plannedUnits)}</strong>
+        <small>实际 / 计划</small>
+        <strong>${formatDuration(actualMinutes)} / ${formatDuration(plannedMinutes)}</strong>
       </div>
     </div>
     ${metricRows
@@ -1171,53 +1576,423 @@ function renderReview() {
 
   dayList.innerHTML = days
     .map((day, index) => {
-      const dayTasks = scheduled.filter((task) => task.day === index);
-      const units = dayTasks.reduce((sum, task) => sum + taskUnitCount(task), 0);
-      const done = dayTasks.reduce((sum, task) => sum + completedUnitCount(task), 0);
-      const width = ratioPercent(done, units);
+      const dayPlans = plannedEntries.filter((entry) => entry.day === index);
+      const planned = dayPlans.reduce((sum, entry) => sum + durationMinutes(entry), 0);
+      const actual = actualTotals.byDay[index] || 0;
+      const width = ratioPercent(actual, planned);
       return `
         <div class="review-line">
           <span class="review-line-label">${day}</span>
-          <strong>${dayTasks.length} 个</strong>
+          <strong>${formatHalfHourBlocks(actual)}格</strong>
           ${reviewBarHtml(width)}
-          <em>${width}% · ${formatUnits(done)}/${formatUnits(units)}</em>
+          <em>${width}% · ${formatDuration(actual)}/${formatDuration(planned)}</em>
         </div>
       `;
     })
     .join("");
 
   const kindRows = [
-    ["重要", tracked.filter((task) => task.kind === "important")],
-    ["弹性", tracked.filter((task) => task.kind === "flexible")],
-    ["日程", tasks.filter((task) => task.kind === "fixed")],
-    ["必要事项", tasks.filter((task) => task.kind === "necessary")],
-    ["待安排", inboxTasks],
+    ["重要", "important"],
+    ["弹性", "flexible"],
+    ["日程", "fixed"],
+    ["必要事项", "necessary"],
   ];
   kindList.innerHTML = kindRows
-    .map(([label, kindTasks], index) => {
-      const units = kindTasks.reduce((sum, task) => sum + taskUnitCount(task), 0);
-      const done = kindTasks.reduce((sum, task) => sum + completedUnitCount(task), 0);
-      const width = ratioPercent(done, units);
+    .map(([label, kind], index) => {
+      const planned = planTotals.byKind[kind] || 0;
+      const actual = actualTotals.byKind[kind] || 0;
+      const width = ratioPercent(actual, planned);
       return `
         <div class="review-line review-kind-${index}">
           <span class="review-line-label">${label}</span>
-          <strong>${kindTasks.length} 个</strong>
+          <strong>${formatHalfHourBlocks(actual)}格</strong>
           ${reviewBarHtml(width)}
-          <em>${width}% · ${formatUnits(done)}/${formatUnits(units)}</em>
+          <em>${width}% · ${formatDuration(actual)}/${formatDuration(planned)}</em>
         </div>
       `;
     })
     .join("");
 
+  renderReviewTimeBoard(plannedEntries);
+  renderActualRecordList();
 }
 
-function buildStat(statTasks) {
-  const plannedUnits = statTasks.reduce((sum, task) => sum + taskUnitCount(task), 0);
-  const doneUnits = statTasks.reduce((sum, task) => sum + completedUnitCount(task), 0);
-  const hours = (plannedUnits * 30) / 60;
+function getReviewPlannedEntries() {
+  const entries = tasks
+    .filter((task) => task.day >= 0 && task.start !== null && task.end !== null && task.end > task.start)
+    .map((task) => {
+      normalizeTaskKind(task);
+      return { ...task, source: "task" };
+    });
+
+  necessarySchedule
+    .filter((item) => item.enabled)
+    .forEach((item) => {
+      days.forEach((_, day) => {
+        const group = day < 5 ? item.weekday : item.weekend;
+        const start = toMinutes(group.start);
+        const end = toMinutes(group.end);
+        if (start === null || end === null || end <= start) return;
+        entries.push({
+          id: `necessary-${item.id}-${day}`,
+          title: item.title,
+          day,
+          start,
+          end,
+          kind: "necessary",
+          category: "OTHER",
+          source: "necessary",
+        });
+      });
+    });
+
+  return entries;
+}
+
+function getReviewPlanTotals(plannedEntries) {
+  const byKind = {
+    important: 0,
+    flexible: 0,
+    fixed: 0,
+    necessary: 0,
+  };
+  let pendingMinutes = 0;
+
+  groupedByCategory().forEach(({ key, kind, categoryTasks }) => {
+    const targetUnits = getGroupPlanUnits(key, categoryTasks);
+    byKind[kind] += targetUnits * 30;
+    pendingMinutes += Math.max(0, targetUnits - scheduledUnitCount(categoryTasks)) * 30;
+  });
+
+  plannedEntries
+    .filter((entry) => ["fixed", "necessary"].includes(entry.kind))
+    .forEach((entry) => {
+      byKind[entry.kind] += durationMinutes(entry);
+    });
+
   return {
-    hours: `${hours.toFixed(plannedUnits % 2 ? 1 : 0)}h`,
-    done: `${plannedUnits ? Math.round((doneUnits / plannedUnits) * 100) : 0}%`,
+    byKind,
+    pendingMinutes,
+    scheduledMinutes: plannedEntries.reduce((sum, entry) => sum + durationMinutes(entry), 0),
+    totalMinutes: Object.values(byKind).reduce((sum, minutes) => sum + minutes, 0),
+  };
+}
+
+function getReviewActualTotals() {
+  const byKind = {
+    important: 0,
+    flexible: 0,
+    fixed: 0,
+    necessary: 0,
+  };
+  const byDay = Array(days.length).fill(0);
+  const trackedKeys = new Set();
+
+  groupedByCategory().forEach(({ key, kind, categoryTasks }) => {
+    trackedKeys.add(key);
+    const records = actualRecordsForGroup(key);
+    const recordedByDay = Array(days.length).fill(0);
+    records.forEach((record) => {
+      if (record.day >= 0 && record.day < days.length) recordedByDay[record.day] += durationMinutes(record);
+    });
+    const checkedByDay = Array(days.length).fill(0);
+    categoryTasks.forEach((task) => {
+      if (task.day >= 0 && task.day < days.length) checkedByDay[task.day] += completedUnitCount(task) * 30;
+    });
+    let groupMinutes = categoryTasks
+      .filter((task) => task.day < 0)
+      .reduce((sum, task) => sum + completedUnitCount(task) * 30, 0);
+    days.forEach((_, day) => {
+      const effectiveMinutes = Math.max(recordedByDay[day], checkedByDay[day]);
+      byDay[day] += effectiveMinutes;
+      groupMinutes += effectiveMinutes;
+    });
+    byKind[kind] += groupMinutes;
+  });
+
+  actualRecords
+    .filter((record) => !trackedKeys.has(actualRecordGroupKey(record)))
+    .forEach((record) => {
+      const minutes = durationMinutes(record);
+      byKind[record.kind] += minutes;
+      if (record.day >= 0 && record.day < days.length) byDay[record.day] += minutes;
+    });
+
+  return {
+    byKind,
+    byDay,
+    totalMinutes: Object.values(byKind).reduce((sum, minutes) => sum + minutes, 0),
+  };
+}
+
+function renderReviewTimeBoard(plannedEntries) {
+  const board = $("#reviewPlanBoard");
+  if (!board) return;
+  const scale = pxPerMinute;
+  const height = (calendarEnd - calendarStart) * scale;
+  board.innerHTML = "";
+
+  const grid = document.createElement("div");
+  grid.className = "review-time-grid";
+  grid.style.setProperty("--review-calendar-height", `${height}px`);
+
+  const timeHeader = document.createElement("div");
+  timeHeader.className = "review-time-header review-time-corner";
+  timeHeader.textContent = "时间";
+  grid.appendChild(timeHeader);
+  days.forEach((day) => {
+    const header = document.createElement("div");
+    header.className = "review-time-header";
+    header.innerHTML = `
+      <span>${day}</span>
+      <button class="review-day-add" type="button" title="记录${day}实际时间" aria-label="记录${day}实际时间">+</button>
+    `;
+    header.querySelector(".review-day-add").addEventListener("click", () => {
+      $("#actualDay").value = String(days.indexOf(day));
+      $("#actualEntryStatus").textContent = `记录${day}`;
+      $("#actualTitle").focus();
+    });
+    grid.appendChild(header);
+  });
+
+  const ruler = document.createElement("div");
+  ruler.className = "review-time-ruler";
+  hours.forEach((hour) => {
+    const marker = document.createElement("span");
+    marker.style.top = `${(hour * 60 - calendarStart) * scale}px`;
+    marker.textContent = `${hour}:00`;
+    ruler.appendChild(marker);
+  });
+  grid.appendChild(ruler);
+
+  days.forEach((_, day) => {
+    const column = document.createElement("div");
+    column.className = "review-time-column";
+    column.dataset.day = day;
+    addReviewColumnCreateHandlers(column);
+
+    hours.forEach((hour) => {
+      const line = document.createElement("i");
+      line.className = "review-hour-line";
+      line.style.top = `${(hour * 60 - calendarStart) * scale}px`;
+      column.appendChild(line);
+    });
+
+    plannedEntries
+      .filter((entry) => entry.day === day && entry.end > calendarStart && entry.start < calendarEnd)
+      .forEach((entry) => {
+        const block = document.createElement("button");
+        const top = (Math.max(entry.start, calendarStart) - calendarStart) * scale;
+        const bottom = (Math.min(entry.end, calendarEnd) - calendarStart) * scale;
+        block.type = "button";
+        block.className = `review-plan-block ${taskKindClass(entry.kind)}`;
+        block.style.top = `${top}px`;
+        block.style.height = `${Math.max(30, bottom - top)}px`;
+        block.title = `按计划记录：${entry.title} ${fromMinutes(entry.start)}-${fromMinutes(entry.end)}`;
+        block.innerHTML = `<strong>${escapeHtml(entry.title)}</strong>`;
+        block.addEventListener("click", () => fillActualFormFromPlan(entry));
+        column.appendChild(block);
+      });
+
+    actualRecords
+      .filter((record) => record.day === day && record.end > calendarStart && record.start < calendarEnd)
+      .forEach((record) => {
+        const block = document.createElement("div");
+        const top = (Math.max(record.start, calendarStart) - calendarStart) * scale;
+        const bottom = (Math.min(record.end, calendarEnd) - calendarStart) * scale;
+        block.className = `review-actual-block ${taskKindClass(record.kind)}`;
+        block.style.top = `${top}px`;
+        block.style.height = `${Math.max(30, bottom - top)}px`;
+        block.title = `实际：${record.title} ${fromMinutes(record.start)}-${fromMinutes(record.end)}`;
+        block.innerHTML = `<strong>${escapeHtml(record.title)}</strong>`;
+        column.appendChild(block);
+      });
+
+    grid.appendChild(column);
+  });
+
+  board.appendChild(grid);
+}
+
+function addReviewColumnCreateHandlers(column) {
+  column.addEventListener("mousedown", (event) => {
+    if (event.button !== 0 || event.target.closest(".review-plan-block")) return;
+    event.preventDefault();
+    const start = Math.min(calendarEnd - 15, snapCalendarMinutes(event.clientY, column));
+    const draft = document.createElement("div");
+    draft.className = "review-actual-draft";
+    column.appendChild(draft);
+    reviewCreateDraft = {
+      column,
+      day: Number(column.dataset.day),
+      anchor: start,
+      start,
+      end: Math.min(start + 30, calendarEnd),
+      draft,
+      moved: false,
+    };
+    updateReviewCreateDraft(event.clientY);
+    document.addEventListener("mousemove", handleReviewCreateMove);
+    document.addEventListener("mouseup", handleReviewCreateEnd);
+  });
+}
+
+function handleReviewCreateMove(event) {
+  if (!reviewCreateDraft) return;
+  reviewCreateDraft.moved = true;
+  updateReviewCreateDraft(event.clientY);
+}
+
+function handleReviewCreateEnd(event) {
+  document.removeEventListener("mousemove", handleReviewCreateMove);
+  document.removeEventListener("mouseup", handleReviewCreateEnd);
+  if (!reviewCreateDraft) return;
+  updateReviewCreateDraft(event.clientY);
+  const { day, start, end, draft, moved } = reviewCreateDraft;
+  draft.remove();
+  reviewCreateDraft = null;
+  if (!moved) return;
+
+  $("#actualDay").value = String(day);
+  $("#actualStart").value = fromMinutes(start);
+  const formEnd = Math.min(calendarEnd - 1, Math.max(start + 15, end));
+  $("#actualEnd").value = fromMinutes(formEnd);
+  actualDraftGroupKey = "";
+  $("#actualEntryStatus").textContent = `${days[day]} ${fromMinutes(start)}-${fromMinutes(formEnd)}`;
+  document.querySelector(".actual-entry-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.setTimeout(() => $("#actualTitle").focus({ preventScroll: true }), 250);
+}
+
+function updateReviewCreateDraft(clientY) {
+  if (!reviewCreateDraft) return;
+  const endPoint = snapCalendarMinutes(clientY, reviewCreateDraft.column);
+  const start = Math.min(reviewCreateDraft.anchor, endPoint);
+  const end = Math.max(reviewCreateDraft.anchor, endPoint);
+  reviewCreateDraft.start = start;
+  reviewCreateDraft.end = end > start ? end : Math.min(start + 30, calendarEnd);
+  const top = (reviewCreateDraft.start - calendarStart) * pxPerMinute;
+  const height = Math.max(30, (reviewCreateDraft.end - reviewCreateDraft.start) * pxPerMinute);
+  reviewCreateDraft.draft.style.top = `${top}px`;
+  reviewCreateDraft.draft.style.height = `${height}px`;
+  reviewCreateDraft.draft.textContent = `${fromMinutes(reviewCreateDraft.start)}-${fromMinutes(reviewCreateDraft.end)}`;
+}
+
+function fillActualFormFromPlan(entry) {
+  $("#actualTitle").value = entry.title;
+  $("#actualDay").value = String(entry.day);
+  $("#actualKind").value = entry.kind;
+  $("#actualStart").value = fromMinutes(entry.start);
+  $("#actualEnd").value = fromMinutes(entry.end);
+  actualDraftGroupKey = ["important", "flexible"].includes(entry.kind) ? summaryGroupKey(entry) : "";
+  $("#actualEntryStatus").textContent = "已带入计划";
+  $("#actualTitle").focus();
+}
+
+function clearActualForm() {
+  $("#actualTitle").value = "";
+  $("#actualStart").value = "";
+  $("#actualEnd").value = "";
+  actualDraftGroupKey = "";
+  $("#actualEntryStatus").textContent = "新记录";
+}
+
+function addActualRecord() {
+  const title = $("#actualTitle").value.trim();
+  const day = Number($("#actualDay").value);
+  const start = toMinutes($("#actualStart").value);
+  const end = toMinutes($("#actualEnd").value);
+  const kind = $("#actualKind").value;
+
+  if (!title || !Number.isInteger(day) || start === null || end === null) {
+    alert("请填写实际事项、日期、开始时间和结束时间。");
+    return;
+  }
+  if (end <= start) {
+    alert("结束时间必须晚于开始时间。");
+    return;
+  }
+
+  captureUndo();
+  const record = {
+    id: uid(),
+    title,
+    day,
+    start,
+    end,
+    kind,
+    createdAt: new Date().toISOString(),
+  };
+  if (actualDraftGroupKey) {
+    const { label } = parseSummaryGroupKey(actualDraftGroupKey);
+    record.groupKey = `${kind}:${label}`;
+  } else {
+    record.groupKey = actualRecordGroupKey(record);
+  }
+  actualRecords.push(record);
+  actualRecords.sort((a, b) => a.day - b.day || a.start - b.start);
+  saveActualRecords();
+  clearActualForm();
+  render();
+}
+
+function deleteActualRecord(id) {
+  if (!actualRecords.some((record) => record.id === id)) return;
+  captureUndo();
+  actualRecords = actualRecords.filter((record) => record.id !== id);
+  saveActualRecords();
+  render();
+}
+
+function renderActualRecordList() {
+  const list = $("#actualRecordList");
+  const count = $("#actualRecordCount");
+  if (!list || !count) return;
+  count.textContent = `${actualRecords.length} 条`;
+
+  if (!actualRecords.length) {
+    list.innerHTML = `<p class="actual-record-empty">还没有实际记录。点击上面的浅色计划块，或直接填写一条记录。</p>`;
+    return;
+  }
+
+  list.innerHTML = days
+    .map((day, dayIndex) => {
+      const records = actualRecords.filter((record) => record.day === dayIndex);
+      if (!records.length) return "";
+      const total = records.reduce((sum, record) => sum + durationMinutes(record), 0);
+      return `
+        <section class="actual-day-group">
+          <div class="actual-day-heading">
+            <strong>${day}</strong>
+            <span>${formatDuration(total)}</span>
+          </div>
+          <div class="actual-day-records">
+            ${records
+              .map(
+                (record) => `
+                  <article class="actual-record-card ${taskKindClass(record.kind)}">
+                    <span class="actual-record-time">${fromMinutes(record.start)}-${fromMinutes(record.end)}</span>
+                    <strong>${escapeHtml(record.title)}</strong>
+                    <span class="actual-record-kind">${taskKindLabel(record.kind)}</span>
+                    <button class="actual-delete-button" type="button" data-id="${record.id}" title="删除实际记录" aria-label="删除实际记录">×</button>
+                  </article>
+                `,
+              )
+              .join("")}
+          </div>
+        </section>
+      `;
+    })
+    .join("");
+
+  list.querySelectorAll(".actual-delete-button").forEach((button) => {
+    button.addEventListener("click", () => deleteActualRecord(button.dataset.id));
+  });
+}
+
+function buildStat(plannedMinutes, actualMinutes) {
+  return {
+    hours: formatDuration(plannedMinutes),
+    done: `${ratioPercent(actualMinutes, plannedMinutes)}%`,
   };
 }
 
@@ -1285,6 +2060,10 @@ function showBoard(weekId) {
   document.querySelectorAll(".tab[data-view]").forEach((item) => item.classList.toggle("active", item.dataset.view === "board"));
   $("#boardView").classList.remove("hidden");
   $("#reviewView").classList.add("hidden");
+  if ($("#actualDay")) {
+    const todayIndex = (new Date().getDay() + 6) % 7;
+    $("#actualDay").value = String(currentWeekId === getWeekId() ? todayIndex : 0);
+  }
   render();
 }
 
@@ -1327,6 +2106,7 @@ function deleteWeekBoard(weekId) {
   removeWeekValue(weekId, sleepScheduleKey);
   removeWeekValue(weekId, planTargetsKey);
   removeWeekValue(weekId, necessaryScheduleKey);
+  removeWeekValue(weekId, actualRecordsKey);
 
   weeks = weeks.filter((item) => item.id !== weekId);
   if (!weeks.length) weeks = [makeWeek(getWeekId())];
@@ -1351,6 +2131,7 @@ function copyWeekBoard(sourceWeekId) {
   writeWeekValue(targetWeekId, sleepScheduleKey, readWeekArray(sourceWeekId, sleepScheduleKey));
   writeWeekValue(targetWeekId, planTargetsKey, readWeekObject(sourceWeekId, planTargetsKey));
   writeWeekValue(targetWeekId, necessaryScheduleKey, readWeekArray(sourceWeekId, necessaryScheduleKey));
+  writeWeekValue(targetWeekId, actualRecordsKey, []);
 
   showBoard(targetWeekId);
 }
@@ -1415,11 +2196,65 @@ function openEditor(id) {
   $("#taskDialog").showModal();
 }
 
+function addTaskFromTopPanel() {
+  const titleInput = $("#topTaskTitle");
+  const title = titleInput.value.trim() || "新任务";
+  const kind = $("#topTaskKind").value;
+  const selectedDay = Number($("#topTaskDay").value);
+  const start = $("#topTaskStart").value ? toMinutes($("#topTaskStart").value) : null;
+  const endInput = $("#topTaskEnd").value ? toMinutes($("#topTaskEnd").value) : null;
+  const hasSchedule = selectedDay >= 0 && start !== null;
+  const end = hasSchedule ? Math.min(calendarEnd, endInput && endInput > start ? endInput : start + 30) : null;
+
+  captureUndo();
+  tasks.push({
+    id: uid(),
+    title,
+    day: hasSchedule ? selectedDay : -1,
+    start: hasSchedule ? start : null,
+    end,
+    category: inferCategory(title),
+    kind,
+    done: false,
+    completedUnits: [],
+  });
+
+  titleInput.value = "";
+  $("#topTaskStart").value = "";
+  $("#topTaskEnd").value = "";
+  save();
+  render();
+}
+
 function bindEvents() {
   $("#addWeekBtn")?.addEventListener("click", addNextWeek);
   $("#homeBtn")?.addEventListener("click", showHome);
+  $("#addTopTaskBtn")?.addEventListener("click", addTaskFromTopPanel);
+  $("#addActualBtn")?.addEventListener("click", addActualRecord);
+  $("#actualTitle")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    addActualRecord();
+  });
+  $("#topTaskTitle")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    addTaskFromTopPanel();
+  });
+  bindDeleteDropZone();
+  document.addEventListener("keydown", (event) => {
+    const isUndo = (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z";
+    if (!isUndo) return;
+    const active = document.activeElement;
+    const isTyping = ["INPUT", "TEXTAREA", "SELECT"].includes(active?.tagName);
+    if (isTyping && active.value) return;
+    event.preventDefault();
+    active?.blur?.();
+    undoLastChange();
+  });
   if ($("#taskInput")) $("#taskInput").value = demoText;
   $("#parseBtn")?.addEventListener("click", () => {
+    captureUndo();
     tasks = parseTasks($("#taskInput").value);
     planTargets = {};
     savePlanTargets();
@@ -1427,6 +2262,7 @@ function bindEvents() {
     render();
   });
   $("#loadDemoBtn")?.addEventListener("click", () => {
+    captureUndo();
     $("#taskInput").value = demoText;
     tasks = parseTasks(demoText);
     planTargets = {};
@@ -1438,6 +2274,7 @@ function bindEvents() {
     input.addEventListener("change", () => {
       const item = necessarySchedule.find((entry) => entry.id === input.dataset.item);
       if (!item) return;
+      captureUndo();
       if (input.type === "checkbox") item.enabled = input.checked;
       else item[input.dataset.group][input.dataset.field] = input.value;
       saveNecessarySchedule();
@@ -1446,6 +2283,7 @@ function bindEvents() {
   });
   $("#addQuickBtn").addEventListener("click", () => {
     const title = $("#quickTitle").value.trim() || "新任务";
+    captureUndo();
     tasks.push({
       id: uid(),
       title,
@@ -1464,6 +2302,8 @@ function bindEvents() {
   $("#saveTaskBtn").addEventListener("click", () => {
     const task = tasks.find((item) => item.id === editingId);
     if (!task) return;
+    const oldGroupKey = summaryGroupKey(task);
+    captureUndo();
     task.title = $("#editTitle").value.trim() || "未命名任务";
     task.day = Number($("#editDay").value);
     task.start = $("#editStart").value ? toMinutes($("#editStart").value) : null;
@@ -1471,11 +2311,15 @@ function bindEvents() {
     task.category = $("#editCategory").value === "OTHER" ? inferCategory(task.title) : $("#editCategory").value;
     task.kind = $("#editKind").value;
     setTaskDone(task, $("#editDone").checked);
+    const nextGroupKey = summaryGroupKey(task);
+    const oldGroupStillExists = tasks.some((item) => item.id !== task.id && summaryGroupKey(item) === oldGroupKey);
+    if (!oldGroupStillExists) migrateSummaryGroupKey(oldGroupKey, nextGroupKey);
     save();
     $("#taskDialog").close();
     render();
   });
   $("#deleteTaskBtn").addEventListener("click", () => {
+    captureUndo();
     tasks = tasks.filter((task) => task.id !== editingId);
     save();
     $("#taskDialog").close();
@@ -1483,13 +2327,14 @@ function bindEvents() {
   });
   $("#clearBtn").addEventListener("click", () => {
     if (!confirm("确定清空当前周看板吗？")) return;
+    captureUndo();
     tasks = [];
     planTargets = {};
     savePlanTargets();
     save();
     render();
   });
-  $("#printBtn").addEventListener("click", () => window.print());
+  $("#printBtn").addEventListener("click", exportPdf);
   $("#exportBtn").addEventListener("click", exportJson);
   $("#importFile").addEventListener("change", importJson);
   document.querySelectorAll(".tab").forEach((tab) => {
@@ -1505,7 +2350,12 @@ function bindEvents() {
 }
 
 function exportJson() {
-  const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: "application/json" });
+  const payload = {
+    version: 2,
+    tasks,
+    actualRecords,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -1521,8 +2371,14 @@ function importJson(event) {
   reader.onload = () => {
     try {
       const imported = JSON.parse(reader.result);
-      if (!Array.isArray(imported)) throw new Error("invalid");
-      tasks = imported;
+      const importedTasks = Array.isArray(imported) ? imported : imported.tasks;
+      if (!Array.isArray(importedTasks)) throw new Error("invalid");
+      captureUndo();
+      tasks = importedTasks;
+      if (!Array.isArray(imported) && Array.isArray(imported.actualRecords)) {
+        actualRecords = normalizeActualRecordList(imported.actualRecords);
+        saveActualRecords();
+      }
       tasks.forEach(normalizeTaskKind);
       tasks.forEach(normalizeTaskProgress);
       save();
@@ -1533,6 +2389,101 @@ function importJson(event) {
   };
   reader.readAsText(file);
   event.target.value = "";
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      existing.addEventListener("load", resolve, { once: true });
+      if (existing.dataset.loaded) resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.onload = () => {
+      script.dataset.loaded = "true";
+      resolve();
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+async function loadPdfLibraries() {
+  if (!window.html2canvas) {
+    await loadScript("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js");
+  }
+  if (!window.jspdf?.jsPDF) {
+    await loadScript("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js");
+  }
+}
+
+function createPdfCaptureNode() {
+  const board = $("#boardView").cloneNode(true);
+  board.classList.remove("hidden");
+  const wrapper = document.createElement("div");
+  wrapper.className = "pdf-capture";
+  wrapper.appendChild(board);
+  document.body.appendChild(wrapper);
+
+  const grid = wrapper.querySelector(".schedule-grid");
+  const shell = wrapper.querySelector(".schedule-shell");
+  const calendarHeight = Number.parseFloat(grid?.style.getPropertyValue("--calendar-height")) || (calendarEnd - calendarStart) * pxPerMinute;
+  const scheduleScale = 0.78;
+  if (grid && shell) {
+    grid.style.transform = `scaleY(${scheduleScale})`;
+    grid.style.transformOrigin = "top left";
+    shell.style.height = `${(48 + calendarHeight) * scheduleScale}px`;
+    shell.style.overflow = "hidden";
+  }
+
+  return wrapper;
+}
+
+async function exportPdf() {
+  document.querySelectorAll(".tab[data-view]").forEach((item) => item.classList.toggle("active", item.dataset.view === "board"));
+  $("#boardView").classList.remove("hidden");
+  $("#reviewView").classList.add("hidden");
+
+  const button = $("#printBtn");
+  const oldText = button.textContent;
+  button.textContent = "生成中...";
+  button.disabled = true;
+
+  let captureNode = null;
+  try {
+    await loadPdfLibraries();
+    captureNode = createPdfCaptureNode();
+    const canvas = await window.html2canvas(captureNode, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageWidth = 297;
+    const pageHeight = 210;
+    const margin = 3;
+    const usableWidth = pageWidth - margin * 2;
+    const usableHeight = pageHeight - margin * 2;
+    const imageRatio = canvas.width / canvas.height;
+    const pageRatio = usableWidth / usableHeight;
+    const width = imageRatio > pageRatio ? usableWidth : usableHeight * imageRatio;
+    const height = imageRatio > pageRatio ? usableWidth / imageRatio : usableHeight;
+    const x = (pageWidth - width) / 2;
+    const y = (pageHeight - height) / 2;
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.96), "JPEG", x, y, width, height);
+    pdf.save(`Eric-D-周看板-${getWeekRange().replace("/", "-")}.pdf`);
+  } catch (error) {
+    alert("PDF 生成失败。请确认网络可以加载 PDF 组件后再试一次。");
+  } finally {
+    captureNode?.remove();
+    button.textContent = oldText;
+    button.disabled = false;
+  }
 }
 
 loadWeeks();

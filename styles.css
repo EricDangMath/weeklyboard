@@ -11,9 +11,9 @@
   --shadow: 0 18px 40px rgba(22, 22, 22, 0.12);
   --sort-col: 60px;
   --task-col: 210px;
-  --plan-col: 90px;
-  --actual-col: 90px;
-  --day-col-min: 124px;
+  --plan-col: 120px;
+  --actual-col: 110px;
+  --day-col-min: 146px;
 }
 
 * {
@@ -49,9 +49,34 @@ button {
   top: 0;
   height: 100vh;
   overflow: auto;
+  scrollbar-gutter: stable;
   padding: 24px;
   color: #fff;
   background: var(--dark);
+}
+
+.control-panel.delete-drag-over {
+  outline: 4px solid #ff4d6d;
+  outline-offset: -8px;
+  background: #311111;
+}
+
+.control-panel.delete-drag-over::after {
+  content: "松开删除收件箱任务";
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  width: 372px;
+  max-width: calc(100vw - 48px);
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  color: #fff;
+  background: #b42318;
+  font-size: 16px;
+  font-weight: 900;
+  text-align: center;
+  z-index: 20;
 }
 
 .brand-block {
@@ -230,6 +255,23 @@ select {
   gap: 10px;
 }
 
+.top-task-form {
+  display: grid;
+  gap: 8px;
+}
+
+.top-time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.add-task-panel input,
+.add-task-panel select {
+  min-height: 34px;
+  padding: 6px 8px;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -361,12 +403,13 @@ select {
 
 .board-area {
   min-width: 0;
-  padding: 24px;
+  padding: 22px;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .board-toolbar {
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .board-toolbar .kicker {
@@ -420,18 +463,47 @@ select {
 
 .summary-table th,
 .summary-table td {
-  height: 34px;
-  padding: 4px 6px;
+  padding: 5px 7px;
   border: 1px solid #858585;
   text-align: center;
   vertical-align: middle;
 }
 
 .summary-table th {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  height: 48px;
   color: #111;
   background: var(--header);
   font-size: 14px;
   font-weight: 900;
+  line-height: 1.05;
+}
+
+.summary-table td {
+  height: 44px;
+}
+
+.summary-table .unit-hint {
+  display: block;
+  margin-top: 4px;
+  color: #3b3b3b;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.day-total-count {
+  display: table;
+  min-width: 62px;
+  margin: 4px auto 0;
+  padding: 2px 5px;
+  border: 1px solid rgba(17, 17, 17, 0.28);
+  border-radius: 3px;
+  color: #222;
+  background: rgba(255, 255, 255, 0.45);
+  font-size: 9px;
+  line-height: 1;
 }
 
 .summary-table .sort-col {
@@ -462,8 +534,8 @@ select {
 }
 
 .plan-input {
-  width: 48px;
-  min-height: 24px;
+  width: 40px;
+  min-height: 28px;
   padding: 2px 4px;
   border: 1px solid rgba(22, 22, 22, 0.45);
   border-radius: 4px;
@@ -472,9 +544,33 @@ select {
   text-align: center;
 }
 
+.plan-cell-metric,
+.actual-cell-metric {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.actual-cell-metric {
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.05;
+}
+
 .plan-unit {
-  margin-left: 3px;
+  margin-left: 0;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.actual-cell-metric strong {
   font-size: 12px;
+}
+
+.actual-cell-metric small {
+  font-size: 10px;
   font-weight: 900;
 }
 
@@ -485,6 +581,10 @@ select {
 
 .summary-row:active {
   cursor: grabbing;
+}
+
+.summary-row.summary-dragging-delete {
+  opacity: 0.45;
 }
 
 .summary-row.drag-placeholder {
@@ -580,16 +680,65 @@ select {
   gap: 4px;
 }
 
+.day-allocation {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 30px;
+}
+
+.day-grid-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 22px;
+  padding: 2px 3px;
+  border: 1px solid #d0d0d0;
+  border-radius: 3px;
+  color: #111;
+  background: #f1f1f1;
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.day-allocation .check-strip {
+  gap: 3px;
+}
+
+.day-allocation.is-empty {
+  grid-template-columns: 1fr;
+}
+
+.day-allocation.is-empty .day-grid-count {
+  min-height: auto;
+  border-color: transparent;
+  color: #b5b5b5;
+  background: transparent;
+  text-align: center;
+}
+
 .mini-check {
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border: 2px solid #111;
   border-radius: 3px;
   background: #fff;
   appearance: none;
   cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.mini-check:hover,
+.mini-check:focus-visible {
+  border-color: var(--blue);
+  outline: none;
+  transform: scale(1.08);
 }
 
 .mini-check.done {
@@ -598,8 +747,32 @@ select {
   box-shadow: inset 0 0 0 3px #fff;
 }
 
+.mini-check.partial {
+  border-color: var(--green);
+  background: linear-gradient(
+    to right,
+    var(--green) 0,
+    var(--green) var(--unit-progress),
+    #fff var(--unit-progress),
+    #fff 100%
+  );
+  box-shadow: none;
+}
+
+.summary-row td:nth-child(n + 5) {
+  background: #fcfcfc;
+}
+
+.summary-row:hover td:nth-child(n + 5) {
+  background: #fffdf0;
+}
+
+.summary-row:hover .summary-rank {
+  background: #f1f1f1;
+}
+
 .schedule-shell {
-  margin-top: 22px;
+  margin-top: 16px;
   background: #fff;
   box-shadow: var(--shadow);
 }
@@ -779,6 +952,7 @@ select {
 }
 
 .task-card {
+  position: relative;
   display: grid;
   grid-template-columns: 18px 1fr;
   gap: 6px;
@@ -918,6 +1092,42 @@ select {
   background: #d8d8d8;
 }
 
+.task-card.has-progress {
+  background-image: none;
+}
+
+.task-card.done {
+  background-image: none;
+  opacity: 1;
+  text-decoration: none;
+}
+
+.task-card.has-progress::after,
+.task-card.done::after {
+  content: "";
+  position: absolute;
+  right: auto;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  width: var(--progress, 100%);
+  height: 4px;
+  background: var(--green);
+  pointer-events: none;
+}
+
+.actual-only-record {
+  left: 48%;
+  right: 0;
+  z-index: 5;
+  grid-template-columns: 1fr;
+  width: auto;
+  border: 2px solid var(--green);
+  border-left-width: 5px;
+  background-image: none;
+  opacity: 0.94;
+}
+
 .hidden {
   display: none;
 }
@@ -930,14 +1140,84 @@ select {
 }
 
 .review-header {
+  display: flex;
+  justify-content: space-between;
   align-items: flex-start;
+  gap: 18px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--line);
   margin-bottom: 18px;
+}
+
+.review-header h2 {
+  margin: 0;
+  font-size: 26px;
 }
 
 .review-header p {
   margin: 0;
   color: var(--muted);
+}
+
+.review-header .kicker {
+  margin-bottom: 5px;
+  color: var(--green);
+}
+
+.actual-entry-panel {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #858585;
+  border-radius: 6px;
+  background: #f4f8fb;
+}
+
+.actual-entry-heading,
+.review-board-heading,
+.actual-record-heading,
+.actual-day-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.actual-entry-heading h3,
+.review-board-heading h3,
+.actual-record-heading h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.actual-entry-heading p,
+.review-board-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.actual-entry-status {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid #8ca3b4;
+  border-radius: 4px;
+  color: #31536c;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.actual-entry-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.6fr) minmax(88px, 0.65fr) minmax(100px, 0.75fr) minmax(112px, 0.8fr) minmax(112px, 0.8fr) auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.actual-entry-form input,
+.actual-entry-form select,
+.actual-add-button {
+  min-height: 38px;
 }
 
 .review-metrics {
@@ -988,6 +1268,11 @@ select {
   font-weight: 900;
 }
 
+.review-ring.over-complete {
+  outline: 5px solid #ff4d6d;
+  outline-offset: -5px;
+}
+
 .review-metric small {
   display: block;
   color: var(--muted);
@@ -1018,6 +1303,191 @@ select {
   grid-template-columns: 1fr 1fr;
   gap: 18px;
   margin-top: 22px;
+}
+
+.review-board-section,
+.actual-record-section {
+  margin-top: 22px;
+}
+
+.review-board-heading {
+  margin-bottom: 10px;
+}
+
+.review-board-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.review-board-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.review-board-legend i {
+  display: inline-block;
+  width: 20px;
+  height: 12px;
+  border: 1px solid #111;
+}
+
+.legend-plan {
+  opacity: 0.35;
+  background: var(--header);
+}
+
+.legend-actual {
+  background: var(--green);
+}
+
+.review-plan-board {
+  overflow-x: auto;
+  border: 1px solid #858585;
+  background: #fff;
+}
+
+.review-time-grid {
+  display: grid;
+  grid-template-columns: 90px repeat(7, minmax(var(--day-col-min), 1fr));
+  grid-template-rows: 48px var(--review-calendar-height);
+  min-width: calc(90px + (var(--day-col-min) * 7));
+}
+
+.review-time-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-right: 1px solid #858585;
+  border-bottom: 1px solid #858585;
+  color: #111;
+  background: var(--blue);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.review-day-add {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #111;
+  border-radius: 3px;
+  color: #111;
+  background: #fff;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.review-day-add:hover,
+.review-day-add:focus-visible {
+  background: var(--header);
+}
+
+.review-time-corner {
+  background: #f1f7ff;
+}
+
+.review-time-ruler,
+.review-time-column {
+  position: relative;
+  height: var(--review-calendar-height);
+  border-right: 1px solid #858585;
+  background: #fff;
+}
+
+.review-time-column {
+  cursor: crosshair;
+  user-select: none;
+}
+
+.review-time-ruler span {
+  position: absolute;
+  left: 0;
+  right: 10px;
+  transform: translateY(-50%);
+  color: #111;
+  font-size: 16px;
+  font-weight: 900;
+  text-align: right;
+  text-shadow: 0 1px 0 #fff;
+}
+
+.review-hour-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #dddddd;
+  pointer-events: none;
+}
+
+.review-plan-block,
+.review-actual-block {
+  position: absolute;
+  overflow: hidden;
+  border: 1px solid #111;
+  border-radius: 0;
+  color: #111;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.review-plan-block {
+  left: 2px;
+  right: 2px;
+  z-index: 1;
+  padding: 5px 6px;
+  opacity: 0.34;
+  cursor: pointer;
+}
+
+.review-plan-block:hover,
+.review-plan-block:focus-visible {
+  z-index: 4;
+  opacity: 0.68;
+  outline: 2px solid #111;
+}
+
+.review-actual-block {
+  left: 24%;
+  right: 0;
+  z-index: 2;
+  padding: 5px 6px;
+  pointer-events: none;
+}
+
+.review-actual-draft {
+  position: absolute;
+  right: 2px;
+  left: 2px;
+  z-index: 8;
+  display: flex;
+  align-items: flex-start;
+  padding: 5px 6px;
+  overflow: hidden;
+  border: 2px dashed var(--green);
+  color: #103819;
+  background: rgba(114, 207, 130, 0.58);
+  font-size: 11px;
+  font-weight: 900;
+  pointer-events: none;
+}
+
+.review-plan-block strong,
+.review-actual-block strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .review-columns h3 {
@@ -1111,8 +1581,137 @@ select {
   text-align: right;
 }
 
+.actual-record-heading {
+  margin-bottom: 10px;
+}
+
+.actual-record-heading span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.actual-record-list {
+  display: grid;
+  gap: 10px;
+}
+
+.actual-record-empty {
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed #a7a7a7;
+  color: var(--muted);
+  background: #fafafa;
+  text-align: center;
+}
+
+.actual-day-group {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.actual-day-heading {
+  align-content: center;
+  flex-direction: column;
+  justify-content: center;
+  padding: 10px 8px;
+  border-right: 1px solid var(--line);
+  background: #f3f3f3;
+}
+
+.actual-day-heading span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.actual-day-records {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 7px;
+  padding: 8px;
+}
+
+.actual-record-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto 28px;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 5px 5px 5px 9px;
+  border: 1px solid #111;
+}
+
+.actual-record-card strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actual-record-time,
+.actual-record-kind {
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.actual-record-kind {
+  padding: 2px 4px;
+  border: 1px solid rgba(17, 17, 17, 0.42);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.actual-delete-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #111;
+  border-radius: 3px;
+  color: #fff;
+  background: #b42318;
+  font-size: 17px;
+  font-weight: 900;
+}
+
 .inbox-empty {
   color: var(--muted);
+}
+
+.pdf-capture {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 1500px;
+  padding: 0;
+  background: #fff;
+  color: #111;
+  z-index: -1;
+}
+
+.pdf-capture .summary-table-wrap {
+  min-width: 0;
+  width: 100%;
+}
+
+.pdf-capture .summary-table,
+.pdf-capture .schedule-shell {
+  box-shadow: none;
+}
+
+.pdf-capture .schedule-shell {
+  margin-top: 10px;
+}
+
+.pdf-capture .calendar-header {
+  position: relative;
+  top: auto;
+}
+
+.pdf-capture .calendar-task:hover {
+  min-height: 30px;
+  overflow: hidden;
 }
 
 dialog {
@@ -1176,25 +1775,72 @@ dialog::backdrop {
   .board-area {
     padding: 16px;
   }
+
+  .actual-entry-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .review-columns {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media print {
+  @page {
+    size: A4 landscape;
+    margin: 3mm;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html,
+  body {
+    width: 297mm;
+    height: 210mm;
+    margin: 0;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .home-screen,
   .control-panel,
   .board-toolbar,
+  .review-view,
   dialog {
     display: none !important;
   }
 
   .app-shell {
     display: block;
+    min-height: 0;
   }
 
   .board-area {
+    width: 420mm;
     padding: 0;
+    overflow: visible;
+    transform: scale(0.7);
+    transform-origin: top left;
+  }
+
+  .summary-table-wrap {
+    min-width: calc(var(--sort-col) + var(--task-col) + var(--plan-col) + var(--actual-col) + (var(--day-col-min) * 7));
   }
 
   .summary-table,
   .schedule-shell {
     box-shadow: none;
+  }
+
+  .schedule-shell {
+    margin-top: 12px;
+  }
+
+  .calendar-header {
+    position: relative;
+    top: auto;
   }
 }

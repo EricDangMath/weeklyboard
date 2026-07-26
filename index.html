@@ -26,6 +26,37 @@
           <p class="week-label" id="weekLabel"></p>
         </div>
 
+        <section class="panel-section compact add-task-panel">
+          <h2>添加任务</h2>
+          <div class="top-task-form">
+            <input id="topTaskTitle" placeholder="任务名字" />
+            <select id="topTaskKind" aria-label="任务类型">
+              <option value="important">重要 · 黄色</option>
+              <option value="flexible">弹性 · 绿色</option>
+              <option value="fixed">灰色日程</option>
+              <option value="necessary">必要事项</option>
+            </select>
+            <select id="topTaskDay" aria-label="日期">
+              <option value="-1">收件箱</option>
+              <option value="0">周一</option>
+              <option value="1">周二</option>
+              <option value="2">周三</option>
+              <option value="3">周四</option>
+              <option value="4">周五</option>
+              <option value="5">周六</option>
+              <option value="6">周日</option>
+            </select>
+            <div class="top-time-row">
+              <input id="topTaskStart" type="time" aria-label="开始时间" />
+              <input id="topTaskEnd" type="time" aria-label="结束时间" />
+            </div>
+          </div>
+          <div class="action-row">
+            <button class="primary-button" id="addTopTaskBtn" type="button">添加</button>
+          </div>
+          <p class="hint small-hint">不选日期或时间会先进收件箱；选了日期和开始时间会直接进入时间表。</p>
+        </section>
+
         <section class="panel-section">
           <div class="section-title">
             <h2>每周必要时间</h2>
@@ -39,6 +70,14 @@
               <span>周末</span>
               <span></span>
             </div>
+            <label class="necessary-row">
+              <input type="checkbox" data-item="morningWash" />
+              <span>早洗漱</span>
+              <input type="time" data-item="morningWash" data-group="weekday" data-field="start" />
+              <input type="time" data-item="morningWash" data-group="weekday" data-field="end" />
+              <input type="time" data-item="morningWash" data-group="weekend" data-field="start" />
+              <input type="time" data-item="morningWash" data-group="weekend" data-field="end" />
+            </label>
             <label class="necessary-row">
               <input type="checkbox" data-item="breakfast" />
               <span>早饭</span>
@@ -115,7 +154,7 @@
               导入 JSON
               <input id="importFile" type="file" accept="application/json" />
             </label>
-            <button class="secondary-button" id="printBtn" type="button">打印</button>
+            <button class="secondary-button" id="printBtn" type="button">导出 PDF</button>
             <button class="danger-button" id="clearBtn" type="button">清空</button>
           </div>
         </section>
@@ -147,15 +186,15 @@
               <tr>
                 <th>排序</th>
                 <th>待分配任务</th>
-                <th>计划</th>
+                <th>计划<small class="unit-hint">1格 = 30分钟</small></th>
                 <th>实际</th>
-                <th>周一</th>
-                <th>周二</th>
-                <th>周三</th>
-                <th>周四</th>
-                <th>周五</th>
-                <th>周六</th>
-                <th>周日</th>
+                <th data-summary-day="0">周一<span class="day-total-count">0格 · 0h</span></th>
+                <th data-summary-day="1">周二<span class="day-total-count">0格 · 0h</span></th>
+                <th data-summary-day="2">周三<span class="day-total-count">0格 · 0h</span></th>
+                <th data-summary-day="3">周四<span class="day-total-count">0格 · 0h</span></th>
+                <th data-summary-day="4">周五<span class="day-total-count">0格 · 0h</span></th>
+                <th data-summary-day="5">周六<span class="day-total-count">0格 · 0h</span></th>
+                <th data-summary-day="6">周日<span class="day-total-count">0格 · 0h</span></th>
               </tr>
             </thead>
             <tbody id="summaryBody"></tbody>
@@ -168,20 +207,78 @@
 
         <section class="review-view hidden" id="reviewView">
           <div class="review-header">
-            <h2>本周复盘</h2>
+            <div>
+              <p class="kicker">计划与实际</p>
+              <h2>本周时间记录</h2>
+            </div>
             <p id="reviewRange"></p>
           </div>
+
+          <section class="actual-entry-panel">
+            <div class="actual-entry-heading">
+              <div>
+                <h3>记录实际时间</h3>
+                <p>点击下面的浅色计划块，可以直接带入计划内容。</p>
+              </div>
+              <span class="actual-entry-status" id="actualEntryStatus">新记录</span>
+            </div>
+            <div class="actual-entry-form">
+              <input id="actualTitle" placeholder="实际做了什么" aria-label="实际事项名称" />
+              <select id="actualDay" aria-label="实际发生日期">
+                <option value="0">周一</option>
+                <option value="1">周二</option>
+                <option value="2">周三</option>
+                <option value="3">周四</option>
+                <option value="4">周五</option>
+                <option value="5">周六</option>
+                <option value="6">周日</option>
+              </select>
+              <select id="actualKind" aria-label="实际事项分类">
+                <option value="important">重要</option>
+                <option value="flexible">弹性</option>
+                <option value="fixed">日程</option>
+                <option value="necessary">必要事项</option>
+              </select>
+              <input id="actualStart" type="time" aria-label="实际开始时间" />
+              <input id="actualEnd" type="time" aria-label="实际结束时间" />
+              <button class="primary-button actual-add-button" id="addActualBtn" type="button">记录时间</button>
+            </div>
+          </section>
+
           <div class="review-metrics" id="reviewMetrics"></div>
+
+          <section class="review-board-section">
+            <div class="review-board-heading">
+              <div>
+                <h3>计划与实际周看板</h3>
+                <p id="reviewBoardCompareSummary">同一时间轴上直接比较每天的安排。</p>
+              </div>
+              <div class="review-board-legend">
+                <span><i class="legend-plan"></i>浅色计划</span>
+                <span><i class="legend-actual"></i>实色实际</span>
+              </div>
+            </div>
+            <div class="review-plan-board" id="reviewPlanBoard"></div>
+          </section>
+
           <div class="review-columns">
             <section>
-              <h3>每天数据</h3>
+              <h3>每天实际 / 计划</h3>
               <div class="review-day-list" id="reviewDayList"></div>
             </section>
             <section>
-              <h3>分类数据</h3>
+              <h3>分类实际 / 计划</h3>
               <div class="review-kind-list" id="reviewKindList"></div>
             </section>
           </div>
+
+          <section class="actual-record-section">
+            <div class="actual-record-heading">
+              <h3>本周实际记录</h3>
+              <span id="actualRecordCount">0 条</span>
+            </div>
+            <div class="actual-record-list" id="actualRecordList"></div>
+          </section>
         </section>
       </main>
     </div>
