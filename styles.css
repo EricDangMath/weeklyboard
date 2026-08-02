@@ -10,10 +10,10 @@
   --dark: #2c2c2c;
   --shadow: 0 18px 40px rgba(22, 22, 22, 0.12);
   --sort-col: 60px;
-  --task-col: 210px;
-  --plan-col: 120px;
-  --actual-col: 110px;
-  --day-col-min: 146px;
+  --task-col: 230px;
+  --plan-col: 140px;
+  --actual-col: 126px;
+  --day-col-min: 156px;
 }
 
 * {
@@ -40,7 +40,7 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 420px minmax(760px, 1fr);
+  grid-template-columns: 500px minmax(760px, 1fr);
   min-height: 100vh;
 }
 
@@ -66,7 +66,7 @@ button {
   position: fixed;
   left: 24px;
   bottom: 24px;
-  width: 372px;
+  width: 452px;
   max-width: calc(100vw - 48px);
   padding: 14px 16px;
   border: 1px solid rgba(255, 255, 255, 0.35);
@@ -103,6 +103,32 @@ button {
 .week-label {
   margin: 10px 0 0;
   color: rgba(255, 255, 255, 0.72);
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.profile-grid label {
+  display: grid;
+  gap: 5px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.profile-grid input {
+  min-height: 34px;
+  padding: 5px 7px;
+}
+
+.profile-time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
 }
 
 .panel-section {
@@ -166,7 +192,7 @@ select {
 
 .necessary-head {
   display: grid;
-  grid-template-columns: 18px 36px 1fr 1fr 1fr 1fr;
+  grid-template-columns: 18px minmax(76px, 1.35fr) repeat(4, minmax(54px, 1fr)) 24px;
   gap: 5px;
   color: rgba(255, 255, 255, 0.72);
   font-size: 11px;
@@ -176,7 +202,7 @@ select {
 
 .necessary-row {
   display: grid;
-  grid-template-columns: 18px 36px 1fr 1fr 1fr 1fr;
+  grid-template-columns: 18px minmax(76px, 1.35fr) repeat(4, minmax(54px, 1fr)) 24px;
   align-items: center;
   gap: 5px;
   color: #fff;
@@ -189,10 +215,45 @@ select {
   min-height: 18px;
 }
 
+.necessary-row.edit-highlight {
+  outline: 2px solid var(--header);
+  outline-offset: 3px;
+}
+
 .necessary-row input[type="time"] {
   min-height: 30px;
   padding: 3px;
   font-size: 10px;
+}
+
+.necessary-title-input {
+  min-width: 0;
+  min-height: 30px;
+  padding: 3px 5px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.mini-action,
+.necessary-delete {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  min-height: 26px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.necessary-delete {
+  width: 24px;
+  min-height: 24px;
+  border-color: #b42318;
+  background: #b42318;
 }
 
 .action-row {
@@ -493,19 +554,6 @@ select {
   line-height: 1;
 }
 
-.day-total-count {
-  display: table;
-  min-width: 62px;
-  margin: 4px auto 0;
-  padding: 2px 5px;
-  border: 1px solid rgba(17, 17, 17, 0.28);
-  border-radius: 3px;
-  color: #222;
-  background: rgba(255, 255, 255, 0.45);
-  font-size: 9px;
-  line-height: 1;
-}
-
 .summary-table .sort-col {
   width: var(--sort-col);
 }
@@ -676,55 +724,32 @@ select {
 .check-strip {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
   gap: 4px;
 }
 
 .day-allocation {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   min-width: 0;
   min-height: 30px;
 }
 
-.day-grid-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  min-height: 22px;
-  padding: 2px 3px;
-  border: 1px solid #d0d0d0;
-  border-radius: 3px;
-  color: #111;
-  background: #f1f1f1;
-  font-size: 10px;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
 .day-allocation .check-strip {
+  justify-content: center;
   gap: 3px;
 }
 
 .day-allocation.is-empty {
-  grid-template-columns: 1fr;
-}
-
-.day-allocation.is-empty .day-grid-count {
-  min-height: auto;
-  border-color: transparent;
-  color: #b5b5b5;
-  background: transparent;
-  text-align: center;
+  align-items: center;
 }
 
 .mini-check {
   flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
   padding: 0;
   border: 2px solid #111;
   border-radius: 3px;
@@ -846,9 +871,36 @@ select {
 }
 
 .sleep-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   margin-bottom: 8px;
   color: #111;
   font-size: 13px;
+  font-weight: 900;
+}
+
+.sleep-week-apply {
+  display: grid;
+  grid-template-columns: 62px 62px 42px;
+  gap: 4px;
+}
+
+.sleep-week-apply input,
+.sleep-week-apply button {
+  width: 100%;
+  min-height: 26px;
+  padding: 2px 3px;
+  border: 1px solid #777;
+  border-radius: 3px;
+  background: #fff;
+  font-size: 10px;
+}
+
+.sleep-week-apply button {
+  color: #111;
+  background: var(--header);
   font-weight: 900;
 }
 
@@ -972,7 +1024,7 @@ select {
 .calendar-task {
   position: absolute;
   z-index: 2;
-  min-height: 30px;
+  min-height: 5px;
   margin: 0;
   overflow: hidden;
   padding: 5px 6px;
@@ -984,7 +1036,7 @@ select {
 
 .calendar-task:hover {
   z-index: 5;
-  min-height: 48px;
+  min-height: 32px;
   overflow: visible;
   box-shadow: none;
   transform: none;
@@ -994,7 +1046,21 @@ select {
   display: none;
 }
 
-.calendar-task:hover .task-time {
+.calendar-task .task-energy {
+  display: none;
+}
+
+.calendar-task:hover .task-energy {
+  display: block;
+}
+
+.calendar-task.show-details {
+  z-index: 6;
+  min-height: 44px;
+  overflow: visible;
+}
+
+.calendar-task.show-details .task-time {
   display: block;
 }
 
@@ -1040,6 +1106,17 @@ select {
   font-weight: 900;
 }
 
+.task-energy {
+  display: inline-flex;
+  margin-top: 4px;
+  padding: 1px 5px;
+  border: 1px solid rgba(17, 17, 17, 0.35);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.58);
+  font-size: 10px;
+  font-weight: 900;
+}
+
 .cat-homework,
 .cat-java,
 .cat-english,
@@ -1074,22 +1151,34 @@ select {
   background: #ededed;
 }
 
-.kind-important {
+.kind-focus {
   background: var(--header);
 }
 
-.kind-flexible {
-  background: #a8e6a2;
+.kind-explore {
+  background: #9edfc8;
 }
 
-.kind-necessary {
-  grid-template-columns: 1fr;
-  color: #fff;
-  background: #555;
+.kind-practice {
+  color: #111;
+  background: #fff;
 }
 
 .kind-fixed {
-  background: #d8d8d8;
+  background: #c8c8c8;
+}
+
+.kind-leisure {
+  background: #f3b8c5;
+}
+
+.kind-buffer {
+  background: #a9c7df;
+}
+
+.task-card.kind-fixed,
+.necessary-auto-block {
+  grid-template-columns: 1fr;
 }
 
 .task-card.has-progress {
@@ -1102,8 +1191,7 @@ select {
   text-decoration: none;
 }
 
-.task-card.has-progress::after,
-.task-card.done::after {
+.task-card.has-progress::after {
   content: "";
   position: absolute;
   right: auto;
@@ -1111,8 +1199,9 @@ select {
   left: 0;
   z-index: 3;
   width: var(--progress, 100%);
-  height: 4px;
+  height: 2px;
   background: var(--green);
+  opacity: 0.45;
   pointer-events: none;
 }
 
@@ -1209,7 +1298,7 @@ select {
 
 .actual-entry-form {
   display: grid;
-  grid-template-columns: minmax(180px, 1.6fr) minmax(88px, 0.65fr) minmax(100px, 0.75fr) minmax(112px, 0.8fr) minmax(112px, 0.8fr) auto;
+  grid-template-columns: minmax(170px, 1.6fr) minmax(82px, 0.6fr) minmax(110px, 0.85fr) minmax(105px, 0.78fr) minmax(105px, 0.78fr) minmax(105px, 0.78fr) auto;
   gap: 8px;
   margin-top: 12px;
 }
@@ -1224,6 +1313,26 @@ select {
   display: grid;
   grid-template-columns: 1.35fr repeat(auto-fit, minmax(130px, 1fr));
   gap: 12px;
+}
+
+.review-purpose {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-left: 5px solid var(--green);
+  background: #f3f8f3;
+}
+
+.review-purpose strong {
+  flex: 0 0 auto;
+}
+
+.review-purpose span {
+  color: #415044;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .review-metric,
@@ -1300,8 +1409,8 @@ select {
 
 .review-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  grid-template-columns: 1fr;
+  gap: 22px;
   margin-top: 22px;
 }
 
@@ -1503,11 +1612,11 @@ select {
 
 .review-line {
   display: grid;
-  grid-template-columns: 70px 58px minmax(90px, 1fr) 120px;
-  gap: 10px;
+  grid-template-columns: 100px 90px minmax(320px, 1fr) 180px;
+  gap: 14px;
   align-items: center;
-  min-height: 38px;
-  padding: 8px 10px;
+  min-height: 48px;
+  padding: 9px 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
@@ -1523,7 +1632,8 @@ select {
 
 .review-bar {
   position: relative;
-  height: 12px;
+  width: 100%;
+  height: 18px;
   overflow: hidden;
   border: 1px solid #c8c8c8;
   border-radius: 999px;
@@ -1554,23 +1664,28 @@ select {
 }
 
 .review-kind-0 .review-bar-fill {
-  background: var(--header);
+  background: #999;
 }
 
 .review-kind-1 .review-bar-fill {
-  background: #74c96b;
+  background: var(--header);
 }
 
 .review-kind-2 .review-bar-fill {
-  background: #b7b7b7;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #777;
 }
 
 .review-kind-3 .review-bar-fill {
-  background: #555;
+  background: #69bea0;
 }
 
 .review-kind-4 .review-bar-fill {
-  background: var(--blue);
+  background: #df91a4;
+}
+
+.review-kind-5 .review-bar-fill {
+  background: #78a7cb;
 }
 
 .review-line em {
@@ -1636,7 +1751,7 @@ select {
 
 .actual-record-card {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto 28px;
+  grid-template-columns: auto minmax(0, 1fr) auto 52px;
   align-items: center;
   gap: 8px;
   min-height: 38px;
@@ -1663,16 +1778,21 @@ select {
   background: rgba(255, 255, 255, 0.62);
 }
 
-.actual-delete-button {
-  width: 28px;
+.actual-cancel-button {
+  width: 52px;
   height: 28px;
   padding: 0;
   border: 1px solid #111;
   border-radius: 3px;
   color: #fff;
   background: #b42318;
-  font-size: 17px;
+  font-size: 12px;
   font-weight: 900;
+  cursor: pointer;
+}
+
+.actual-cancel-button:hover {
+  background: #8f1c13;
 }
 
 .inbox-empty {
@@ -1782,6 +1902,15 @@ dialog::backdrop {
 
   .review-columns {
     grid-template-columns: 1fr;
+  }
+
+  .review-line {
+    grid-template-columns: 82px minmax(0, 1fr) 132px;
+  }
+
+  .review-line .review-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }
 

@@ -24,17 +24,38 @@
           <p class="kicker">鸿儒周看板 · 互动版</p>
           <h1>周看板生成器</h1>
           <p class="week-label" id="weekLabel"></p>
+          <div class="profile-grid">
+            <label>
+              看板姓名
+              <input id="ownerName" value="Eric D" placeholder="你的名字" />
+            </label>
+            <label>
+              看板时段
+              <span class="profile-time-row">
+                <input id="calendarStartTime" type="time" value="05:00" />
+                <input id="calendarEndTime" type="time" value="23:59" />
+              </span>
+            </label>
+          </div>
         </div>
 
         <section class="panel-section compact add-task-panel">
-          <h2>添加任务</h2>
+          <h2>时间分配</h2>
           <div class="top-task-form">
             <input id="topTaskTitle" placeholder="任务名字" />
             <select id="topTaskKind" aria-label="任务类型">
-              <option value="important">重要 · 黄色</option>
-              <option value="flexible">弹性 · 绿色</option>
-              <option value="fixed">灰色日程</option>
-              <option value="necessary">必要事项</option>
+              <option value="fixed">固定日程</option>
+              <option value="focus" selected>本周重点</option>
+              <option value="practice">每日必修</option>
+              <option value="explore">学术探索</option>
+              <option value="leisure">放松娱乐</option>
+              <option value="buffer">缓冲复盘</option>
+            </select>
+            <select id="topTaskEnergy" aria-label="所需精力">
+              <option value="high">高精力</option>
+              <option value="medium" selected>中精力</option>
+              <option value="low">低精力</option>
+              <option value="recovery">精力恢复</option>
             </select>
             <select id="topTaskDay" aria-label="日期">
               <option value="-1">收件箱</option>
@@ -52,14 +73,15 @@
             </div>
           </div>
           <div class="action-row">
-            <button class="primary-button" id="addTopTaskBtn" type="button">添加</button>
+            <button class="primary-button" id="addTopTaskBtn" type="button">分配时间</button>
           </div>
-          <p class="hint small-hint">不选日期或时间会先进收件箱；选了日期和开始时间会直接进入时间表。</p>
+          <p class="hint small-hint">日历拖拽按 5 分钟吸附；任务完成按番茄钟统计。</p>
         </section>
 
         <section class="panel-section">
           <div class="section-title">
-            <h2>每周必要时间</h2>
+            <h2>每日必修 / 必要时间</h2>
+            <button class="mini-action" id="addNecessaryBtn" type="button" title="新增固定事项">＋</button>
           </div>
           <div class="necessary-settings" id="necessarySettings">
             <div class="necessary-head">
@@ -69,53 +91,15 @@
               <span></span>
               <span>周末</span>
               <span></span>
+              <span></span>
             </div>
-            <label class="necessary-row">
-              <input type="checkbox" data-item="morningWash" />
-              <span>早洗漱</span>
-              <input type="time" data-item="morningWash" data-group="weekday" data-field="start" />
-              <input type="time" data-item="morningWash" data-group="weekday" data-field="end" />
-              <input type="time" data-item="morningWash" data-group="weekend" data-field="start" />
-              <input type="time" data-item="morningWash" data-group="weekend" data-field="end" />
-            </label>
-            <label class="necessary-row">
-              <input type="checkbox" data-item="breakfast" />
-              <span>早饭</span>
-              <input type="time" data-item="breakfast" data-group="weekday" data-field="start" />
-              <input type="time" data-item="breakfast" data-group="weekday" data-field="end" />
-              <input type="time" data-item="breakfast" data-group="weekend" data-field="start" />
-              <input type="time" data-item="breakfast" data-group="weekend" data-field="end" />
-            </label>
-            <label class="necessary-row">
-              <input type="checkbox" data-item="lunch" />
-              <span>午饭</span>
-              <input type="time" data-item="lunch" data-group="weekday" data-field="start" />
-              <input type="time" data-item="lunch" data-group="weekday" data-field="end" />
-              <input type="time" data-item="lunch" data-group="weekend" data-field="start" />
-              <input type="time" data-item="lunch" data-group="weekend" data-field="end" />
-            </label>
-            <label class="necessary-row">
-              <input type="checkbox" data-item="dinner" />
-              <span>晚饭</span>
-              <input type="time" data-item="dinner" data-group="weekday" data-field="start" />
-              <input type="time" data-item="dinner" data-group="weekday" data-field="end" />
-              <input type="time" data-item="dinner" data-group="weekend" data-field="start" />
-              <input type="time" data-item="dinner" data-group="weekend" data-field="end" />
-            </label>
-            <label class="necessary-row">
-              <input type="checkbox" data-item="wash" />
-              <span>洗漱</span>
-              <input type="time" data-item="wash" data-group="weekday" data-field="start" />
-              <input type="time" data-item="wash" data-group="weekday" data-field="end" />
-              <input type="time" data-item="wash" data-group="weekend" data-field="start" />
-              <input type="time" data-item="wash" data-group="weekend" data-field="end" />
-            </label>
+            <div id="necessaryRows"></div>
           </div>
-          <p class="hint">周一到周五使用周中时间，周六周日使用周末时间。</p>
+          <p class="hint">可自定义读书、运动、反思、助人、感恩等；周中和周末分别设置，自动生成一周。</p>
         </section>
 
         <section class="panel-section compact">
-          <h2>Reminders</h2>
+          <h2>待分配任务</h2>
           <div class="quick-form">
             <input id="quickTitle" placeholder="写一个待安排任务" />
           </div>
@@ -128,13 +112,13 @@
         <section class="panel-section compact">
           <h2>本周统计</h2>
           <div class="stats-grid">
-            <div class="stat-card kind-important">
-              <small>重要</small>
+            <div class="stat-card kind-focus">
+              <small>本周重点</small>
               <span id="statImportantHours">0h</span>
               <em id="statImportantDone">0%</em>
             </div>
-            <div class="stat-card kind-flexible">
-              <small>弹性</small>
+            <div class="stat-card kind-explore">
+              <small>学术探索</small>
               <span id="statFlexibleHours">0h</span>
               <em id="statFlexibleDone">0%</em>
             </div>
@@ -155,6 +139,16 @@
               <input id="importFile" type="file" accept="application/json" />
             </label>
             <button class="secondary-button" id="printBtn" type="button">导出 PDF</button>
+            <button class="secondary-button" id="templateBtn" type="button">课表模板</button>
+            <label class="secondary-button file-button">
+              导入课表
+              <input id="timetableFile" type="file" accept=".csv,text/csv" />
+            </label>
+            <label class="secondary-button file-button">
+              导入日历
+              <input id="calendarFile" type="file" accept=".ics,text/calendar" />
+            </label>
+            <button class="secondary-button" id="exportCalendarBtn" type="button">导出日历</button>
             <button class="danger-button" id="clearBtn" type="button">清空</button>
           </div>
         </section>
@@ -186,15 +180,15 @@
               <tr>
                 <th>排序</th>
                 <th>待分配任务</th>
-                <th>计划<small class="unit-hint">1格 = 30分钟</small></th>
+                <th>计划<small class="unit-hint">1番茄钟 = 30分钟，只计整数</small></th>
                 <th>实际</th>
-                <th data-summary-day="0">周一<span class="day-total-count">0格 · 0h</span></th>
-                <th data-summary-day="1">周二<span class="day-total-count">0格 · 0h</span></th>
-                <th data-summary-day="2">周三<span class="day-total-count">0格 · 0h</span></th>
-                <th data-summary-day="3">周四<span class="day-total-count">0格 · 0h</span></th>
-                <th data-summary-day="4">周五<span class="day-total-count">0格 · 0h</span></th>
-                <th data-summary-day="5">周六<span class="day-total-count">0格 · 0h</span></th>
-                <th data-summary-day="6">周日<span class="day-total-count">0格 · 0h</span></th>
+                <th>周一</th>
+                <th>周二</th>
+                <th>周三</th>
+                <th>周四</th>
+                <th>周五</th>
+                <th>周六</th>
+                <th>周日</th>
               </tr>
             </thead>
             <tbody id="summaryBody"></tbody>
@@ -209,7 +203,7 @@
           <div class="review-header">
             <div>
               <p class="kicker">计划与实际</p>
-              <h2>本周时间记录</h2>
+              <h2>一日复盘 · 本周时间记录</h2>
             </div>
             <p id="reviewRange"></p>
           </div>
@@ -218,7 +212,7 @@
             <div class="actual-entry-heading">
               <div>
                 <h3>记录实际时间</h3>
-                <p>点击下面的浅色计划块，可以直接带入计划内容。</p>
+                <p>记录时间、目标检视与精力状态；点击浅色计划块可直接带入。</p>
               </div>
               <span class="actual-entry-status" id="actualEntryStatus">新记录</span>
             </div>
@@ -234,10 +228,18 @@
                 <option value="6">周日</option>
               </select>
               <select id="actualKind" aria-label="实际事项分类">
-                <option value="important">重要</option>
-                <option value="flexible">弹性</option>
-                <option value="fixed">日程</option>
-                <option value="necessary">必要事项</option>
+                <option value="fixed">固定日程</option>
+                <option value="focus">本周重点</option>
+                <option value="practice">每日必修</option>
+                <option value="explore">学术探索</option>
+                <option value="leisure">放松娱乐</option>
+                <option value="buffer">缓冲复盘</option>
+              </select>
+              <select id="actualEnergy" aria-label="实际精力状态">
+                <option value="high">高精力</option>
+                <option value="medium" selected>中精力</option>
+                <option value="low">低精力</option>
+                <option value="recovery">精力恢复</option>
               </select>
               <input id="actualStart" type="time" aria-label="实际开始时间" />
               <input id="actualEnd" type="time" aria-label="实际结束时间" />
@@ -246,6 +248,11 @@
           </section>
 
           <div class="review-metrics" id="reviewMetrics"></div>
+
+          <section class="review-purpose">
+            <strong>复盘不是只看效率</strong>
+            <span>看见时间去向，检查吃、睡、动对精力的影响，并持续保护每日修炼和生命系统。</span>
+          </section>
 
           <section class="review-board-section">
             <div class="review-board-heading">
@@ -328,10 +335,21 @@
         <label>
           类型
           <select id="editKind">
-            <option value="important">重要 · 黄色</option>
-            <option value="flexible">弹性 · 绿色</option>
-            <option value="necessary">必要事项</option>
-            <option value="fixed">日程 · 灰色</option>
+            <option value="fixed">固定日程</option>
+            <option value="focus">本周重点</option>
+            <option value="practice">每日必修</option>
+            <option value="explore">学术探索</option>
+            <option value="leisure">放松娱乐</option>
+            <option value="buffer">缓冲复盘</option>
+          </select>
+        </label>
+        <label>
+          精力
+          <select id="editEnergy">
+            <option value="high">高精力</option>
+            <option value="medium">中精力</option>
+            <option value="low">低精力</option>
+            <option value="recovery">精力恢复</option>
           </select>
         </label>
         <label class="checkbox-line">
