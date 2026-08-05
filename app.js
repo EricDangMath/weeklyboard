@@ -28,12 +28,14 @@ let weeks = [];
 let currentWeekId = "";
 let editingId = null;
 let createDraft = null;
+let actualCreateDraft = null;
 let reviewCreateDraft = null;
 let summaryDrag = null;
 let undoStack = [];
 let activeTaskDrag = null;
 let activeSummaryGroupDrag = null;
 let actualDraftGroupKey = "";
+let scheduleLayer = "plan";
 
 const demoText = `周一 6:30-7:00 BREAKFAST
 周一 8-9 SPANISH
@@ -122,6 +124,12 @@ function formatWeekRangeFromMonday(monday) {
 
 function getWeekRange() {
   return formatWeekRangeFromMonday(currentWeekId ? dateFromWeekId(currentWeekId) : getMonday(new Date()));
+}
+
+function getWeekEndId(weekId) {
+  const sunday = dateFromWeekId(weekId);
+  sunday.setDate(sunday.getDate() + 6);
+  return formatDateId(sunday);
 }
 
 function makeWeek(id) {
@@ -1140,6 +1148,62 @@ function focusNecessarySetting(itemId) {
   window.setTimeout(() => row.classList.remove("edit-highlight"), 1200);
 }
 
+function saveQuickActualRecord(entry, recordedMinutes = 0) {
+  const plannedMinutes = durationMinutes(entry);
+  const remainingMinutes = Math.max(0, plannedMinutes - recordedMinutes);
+  if (!remainingMinutes) return false;
+  const start = Math.min(entry.end, entry.start + recordedMinutes);
+  const end = Math.min(entry.end, start + remainingMinutes);
+  if (end <= start) return false;
+  actualRecords.push({
+    id: uid(),
+    title: entry.title,
+    day: entry.day,
+    start,
+    end,
+    kind: normalizeKindValue(entry.kind),
+    energy: normalizeEnergy(entry.energy),
+    groupKey: summaryGroupKey(entry),
+    createdAt: new Date().toISOString(),
+  });
+  actualRecords.sort((a, b) => a.day - b.day || a.start - b.start);
+  return true;
+}
+
+function quickCompletePlannedTask(task) {
+  const recordedMinutes = Math.max(0, recordedMinutesForTask(task) || 0);
+  const needsRecord = recordedMinutes < durationMinutes(task);
+  const needsCheck = task.kind !== "fixed" && !isTaskDone(task);
+  if (!needsRecord && !needsCheck) return;
+  captureUndo();
+  if (needsRecord) saveQuickActualRecord(task, recordedMinutes);
+  if (task.kind !== "fixed") setTaskDone(task, true);
+  save();
+  saveActualRecords();
+  render();
+}
+
+function quickCompleteNecessaryItem(item, day, start, end) {
+  const entry = {
+    title: item.title,
+    day,
+    start,
+    end,
+    kind: "practice",
+    energy: item.energy,
+    category: "OTHER",
+  };
+  const groupKey = summaryGroupKey(entry);
+  const recordedMinutes = actualRecords
+    .filter((record) => record.day === day && actualRecordGroupKey(record) === groupKey)
+    .reduce((sum, record) => sum + durationMinutes(record), 0);
+  if (recordedMinutes >= durationMinutes(entry)) return;
+  captureUndo();
+  saveQuickActualRecord(entry, recordedMinutes);
+  saveActualRecords();
+  render();
+}
+
 function createTaskCard(task, mode = "stack") {
   const card = document.createElement("div");
   normalizeTaskKind(task);
@@ -1178,6 +1242,10 @@ function createTaskCard(task, mode = "stack") {
   });
   card.querySelector("button")?.addEventListener("click", (event) => {
     event.stopPropagation();
+    if (mode === "calendar" && scheduleLayer === "actual") {
+      quickCompletePlannedTask(task);
+      return;
+    }
     captureUndo();
     setTaskDone(task, !isTaskEffectivelyDone(task));
     save();
@@ -1186,6 +1254,10 @@ function createTaskCard(task, mode = "stack") {
   if (mode === "calendar") {
     card.addEventListener("click", (event) => {
       event.stopPropagation();
+      if (scheduleLayer === "actual") {
+        quickCompletePlannedTask(task);
+        return;
+      }
       toggleCalendarTaskDetails(card);
     });
     card.addEventListener("contextmenu", (event) => {
@@ -1200,23 +1272,71 @@ function createTaskCard(task, mode = "stack") {
   return card;
 }
 
+function createActualScheduleSidebar() {
+  const sidebar = document.createElement("div");
+  sidebar.className = "schedule-actual-sidebar schedule-actual-layer";
+  const totalMinutes = getReviewActualTotals().totalMinutes;
+  const displayEntries = days.flatMap((_, day) => getActualScheduleEntries(day));
+  sidebar.innerHTML = `
+    <div class="schedule-actual-heading">
+      <strong>实际记录</strong>
+      <span>${formatDuration(totalMinutes)}</span>
+    </div>
+    <div class="schedule-actual-list">
+      ${displayEntries.length
+        ? displayEntries
+            .map(
+              (entry) => `
+                <div class="schedule-actual-list-item ${taskKindClass(entry.kind)}">
+                  <span>${days[entry.day]} ${fromMinutes(entry.start)}-${fromMinutes(entry.end)}</span>
+                  <strong>${escapeHtml(entry.title)}</strong>
+                  <button class="schedule-actual-delete" type="button" ${
+                    entry.source === "record"
+                      ? `data-record-id="${escapeHtml(entry.id)}"`
+                      : `data-task-id="${escapeHtml(entry.sourceTaskId)}"`
+                  } title="删除实际记录：${escapeHtml(entry.title)}" aria-label="删除实际记录：${escapeHtml(entry.title)}">×</button>
+                </div>
+              `,
+            )
+            .join("")
+        : `<p class="inbox-empty">还没有实际时间记录。</p>`}
+    </div>
+  `;
+  sidebar.querySelectorAll(".schedule-actual-delete").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.recordId) {
+        cancelActualRecord(button.dataset.recordId);
+        return;
+      }
+      const task = tasks.find((item) => item.id === button.dataset.taskId);
+      if (!task) return;
+      captureUndo();
+      setTaskDone(task, false);
+      save();
+      render();
+    });
+  });
+  return sidebar;
+}
+
+function syncScheduleLayerUI() {
+  const grid = $("#scheduleGrid");
+  if (!grid) return;
+  grid.classList.toggle("show-actual", scheduleLayer === "actual");
+  document.querySelectorAll("[data-schedule-layer]").forEach((button) => {
+    const active = button.dataset.scheduleLayer === scheduleLayer;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  const planMinutes = getReviewPlannedEntries().reduce((sum, entry) => sum + durationMinutes(entry), 0);
+  const actualMinutes = getReviewActualTotals().totalMinutes;
+  $("#scheduleLayerSummary").textContent = `预计 ${formatDuration(planMinutes)} · 实际 ${formatDuration(actualMinutes)}`;
+}
+
 function renderSchedule() {
   const grid = $("#scheduleGrid");
   grid.innerHTML = "";
   grid.style.setProperty("--calendar-height", `${(calendarEnd - calendarStart) * pxPerMinute}px`);
-
-  const corner = document.createElement("div");
-  corner.className = "calendar-header inbox-header-cell";
-  corner.style.gridColumn = "span 4";
-  corner.textContent = "收件箱";
-  grid.appendChild(corner);
-
-  days.forEach((day) => {
-    const header = document.createElement("div");
-    header.className = "calendar-header";
-    header.textContent = day;
-    grid.appendChild(header);
-  });
 
   const leftPanel = document.createElement("div");
   leftPanel.className = "schedule-inbox";
@@ -1224,7 +1344,7 @@ function renderSchedule() {
   addInboxDropHandlers(leftPanel);
 
   const inboxContent = document.createElement("div");
-  inboxContent.className = "schedule-inbox-content";
+  inboxContent.className = "schedule-inbox-content schedule-plan-layer";
   const inboxTasks = tasks.filter((task) => task.day < 0 || task.start === null || task.end === null);
   if (inboxTasks.length) {
     inboxTasks.forEach((task) => inboxContent.appendChild(createTaskCard(task)));
@@ -1232,6 +1352,7 @@ function renderSchedule() {
     inboxContent.innerHTML = `<p class="inbox-empty">没有待安排任务。</p>`;
   }
   leftPanel.appendChild(inboxContent);
+  leftPanel.appendChild(createActualScheduleSidebar());
 
   const sleepControls = document.createElement("div");
   sleepControls.className = "sleep-controls";
@@ -1239,8 +1360,8 @@ function renderSchedule() {
     <div class="sleep-title">
       <span>睡眠时间</span>
       <span class="sleep-week-apply">
-        <input type="time" id="sleepWeekStart" value="${sleepSchedule[0]?.start || "23:00"}" aria-label="整周入睡时间" />
         <input type="time" id="sleepWeekEnd" value="${sleepSchedule[0]?.end || "07:00"}" aria-label="整周起床时间" />
+        <input type="time" id="sleepWeekStart" value="${sleepSchedule[0]?.start || "23:00"}" aria-label="整周入睡时间" />
         <button type="button" id="applySleepWeekBtn">整周</button>
       </span>
     </div>
@@ -1249,8 +1370,8 @@ function renderSchedule() {
         (day, index) => `
           <label class="sleep-row">
             <span>${day}</span>
-            <input type="time" value="${sleepSchedule[index].start}" data-day="${index}" data-field="start" />
-            <input type="time" value="${sleepSchedule[index].end}" data-day="${index}" data-field="end" />
+            <input type="time" value="${sleepSchedule[index].end}" data-day="${index}" data-field="end" aria-label="${day}起床时间" />
+            <input type="time" value="${sleepSchedule[index].start}" data-day="${index}" data-field="start" aria-label="${day}入睡时间" />
           </label>
         `,
       )
@@ -1311,6 +1432,7 @@ function renderSchedule() {
 
     layoutDayTasks(day).forEach(({ task, lane, lanes }) => {
       const card = createTaskCard(task, "calendar");
+      card.classList.add("schedule-plan-layer");
       const top = (Math.max(task.start, calendarStart) - calendarStart) * pxPerMinute;
       const bottom = (Math.min(task.end, calendarEnd) - calendarStart) * pxPerMinute;
       const gap = lanes > 1 ? 2 : 0;
@@ -1322,14 +1444,19 @@ function renderSchedule() {
       column.appendChild(card);
     });
 
-    renderUnplannedActualBlocks(column, day);
+    renderActualScheduleBlocks(column, day);
     grid.appendChild(column);
   });
+  syncScheduleLayerUI();
 }
 
 function addColumnCreateHandlers(column) {
   column.addEventListener("mousedown", (event) => {
     if (event.button !== 0 || event.target.closest(".task-card")) return;
+    if (scheduleLayer === "actual") {
+      beginActualColumnCreate(event, column);
+      return;
+    }
     event.preventDefault();
     const start = Math.min(calendarEnd - snapMinutes, snapCalendarMinutes(event.clientY, column));
     const draft = document.createElement("div");
@@ -1348,6 +1475,142 @@ function addColumnCreateHandlers(column) {
     document.addEventListener("mousemove", handleCreateMove);
     document.addEventListener("mouseup", handleCreateEnd);
   });
+}
+
+function beginActualColumnCreate(event, column) {
+  event.preventDefault();
+  const start = Math.min(calendarEnd - snapMinutes, snapCalendarMinutes(event.clientY, column));
+  const draft = document.createElement("div");
+  draft.className = "actual-drag-draft";
+  column.appendChild(draft);
+  actualCreateDraft = {
+    column,
+    day: Number(column.dataset.day),
+    anchor: start,
+    start,
+    end: Math.min(start + tomatoMinutes, calendarEnd),
+    draft,
+    moved: false,
+  };
+  updateActualCreateDraft(event.clientY);
+  document.addEventListener("mousemove", handleActualCreateMove);
+  document.addEventListener("mouseup", handleActualCreateEnd);
+}
+
+function handleActualCreateMove(event) {
+  if (!actualCreateDraft) return;
+  actualCreateDraft.moved = true;
+  updateActualCreateDraft(event.clientY);
+}
+
+function handleActualCreateEnd(event) {
+  document.removeEventListener("mousemove", handleActualCreateMove);
+  document.removeEventListener("mouseup", handleActualCreateEnd);
+  if (!actualCreateDraft) return;
+  updateActualCreateDraft(event.clientY);
+  const { day, start, end, draft, moved } = actualCreateDraft;
+  draft.remove();
+  actualCreateDraft = null;
+  if (!moved) return;
+  openQuickActualDialog(day, start, end);
+}
+
+function updateActualCreateDraft(clientY) {
+  if (!actualCreateDraft) return;
+  const endPoint = snapCalendarMinutes(clientY, actualCreateDraft.column);
+  const start = Math.min(actualCreateDraft.anchor, endPoint);
+  const end = Math.max(actualCreateDraft.anchor, endPoint);
+  actualCreateDraft.start = start;
+  actualCreateDraft.end = end > start ? end : Math.min(start + tomatoMinutes, calendarEnd);
+  const top = (actualCreateDraft.start - calendarStart) * pxPerMinute;
+  const height = Math.max(5, (actualCreateDraft.end - actualCreateDraft.start) * pxPerMinute);
+  actualCreateDraft.draft.style.top = `${top}px`;
+  actualCreateDraft.draft.style.height = `${height}px`;
+  actualCreateDraft.draft.textContent = `${fromMinutes(actualCreateDraft.start)}-${fromMinutes(actualCreateDraft.end)}`;
+}
+
+function fillQuickActualTaskFields(task) {
+  if (!task) return;
+  $("#quickActualTitle").value = task.title;
+  $("#quickActualKind").value = normalizeKindValue(task.kind);
+  $("#quickActualEnergy").value = normalizeEnergy(task.energy);
+}
+
+function openQuickActualDialog(day, start, end) {
+  const selector = $("#quickActualTask");
+  const candidates = tasks.filter((task) => task.kind !== "fixed" || task.day >= 0);
+  selector.innerHTML = `<option value="">新完成事项</option>${candidates
+    .map(
+      (task) =>
+        `<option value="${escapeHtml(task.id)}">${escapeHtml(task.title)} · ${task.day >= 0 ? days[task.day] : "待分配"}</option>`,
+    )
+    .join("")}`;
+  const overlap = candidates.find(
+    (task) => task.day === day && task.start !== null && task.end !== null && task.start < end && task.end > start,
+  );
+  selector.value = overlap?.id || "";
+  $("#quickActualTitle").value = "";
+  $("#quickActualDay").value = String(day);
+  $("#quickActualStart").value = fromMinutes(start);
+  $("#quickActualEnd").value = fromMinutes(end);
+  $("#quickActualKind").value = "focus";
+  $("#quickActualEnergy").value = "medium";
+  if (overlap) fillQuickActualTaskFields(overlap);
+  $("#quickActualDialog").showModal();
+  $("#quickActualTitle").focus();
+}
+
+function saveQuickActualFromDialog() {
+  const title = $("#quickActualTitle").value.trim();
+  const day = Number($("#quickActualDay").value);
+  const start = toMinutes($("#quickActualStart").value);
+  const end = toMinutes($("#quickActualEnd").value);
+  if (!title || !Number.isInteger(day) || start === null || end === null || end <= start) {
+    alert("请填写完成内容，并确认结束时间晚于开始时间。");
+    return;
+  }
+
+  const selectedTask = tasks.find((task) => task.id === $("#quickActualTask").value);
+  const titleMatch = tasks.find((task) => task.title.trim().toLowerCase() === title.toLowerCase());
+  let matchedTask = selectedTask || titleMatch || null;
+  const actualUnits = Math.max(1, Math.ceil((end - start) / tomatoMinutes));
+  captureUndo();
+
+  if (!matchedTask) {
+    matchedTask = {
+      id: uid(),
+      title,
+      day: -1,
+      start: null,
+      end: null,
+      plannedUnits: actualUnits,
+      category: inferCategory(title),
+      kind: $("#quickActualKind").value,
+      energy: normalizeEnergy($("#quickActualEnergy").value),
+      done: false,
+      completedUnits: [],
+    };
+    tasks.push(matchedTask);
+  }
+
+  const kind = normalizeKindValue(matchedTask.kind || $("#quickActualKind").value);
+  const energy = normalizeEnergy(matchedTask.energy || $("#quickActualEnergy").value);
+  actualRecords.push({
+    id: uid(),
+    title,
+    day,
+    start,
+    end,
+    kind,
+    energy,
+    groupKey: summaryGroupKey(matchedTask),
+    createdAt: new Date().toISOString(),
+  });
+  actualRecords.sort((a, b) => a.day - b.day || a.start - b.start);
+  save();
+  saveActualRecords();
+  $("#quickActualDialog").close();
+  render();
 }
 
 function handleCreateMove(event) {
@@ -1429,7 +1692,7 @@ function renderSleepBlocks(column, day) {
     const top = (segment.start - calendarStart) * pxPerMinute;
     const height = Math.max(20, (segment.end - segment.start) * pxPerMinute);
     const block = document.createElement("div");
-    block.className = "sleep-block";
+    block.className = "sleep-block schedule-plan-layer";
     block.style.top = `${top}px`;
     block.style.height = `${height}px`;
     block.textContent = "SLEEP";
@@ -1448,7 +1711,7 @@ function renderNecessaryBlocks(column, day) {
       const top = (Math.max(start, calendarStart) - calendarStart) * pxPerMinute;
       const bottom = (Math.min(end, calendarEnd) - calendarStart) * pxPerMinute;
       const block = document.createElement("div");
-      block.className = "task-card calendar-task kind-practice necessary-auto-block";
+      block.className = "task-card calendar-task kind-practice necessary-auto-block schedule-plan-layer";
       block.style.top = `${top}px`;
       block.style.height = `${Math.max(5, bottom - top)}px`;
       block.style.left = "0";
@@ -1462,6 +1725,10 @@ function renderNecessaryBlocks(column, day) {
       `;
       block.addEventListener("click", (event) => {
         event.stopPropagation();
+        if (scheduleLayer === "actual") {
+          quickCompleteNecessaryItem(item, day, start, end);
+          return;
+        }
         toggleCalendarTaskDetails(block);
       });
       block.addEventListener("contextmenu", (event) => {
@@ -1474,60 +1741,84 @@ function renderNecessaryBlocks(column, day) {
     });
 }
 
-function actualRecordHasPlannedTask(record) {
-  const groupKey = actualRecordGroupKey(record);
-  const matchesScheduledTask = tasks.some(
-    (task) =>
-      task.day === record.day &&
-      task.start !== null &&
-      task.end !== null &&
-      task.end > task.start &&
-      summaryGroupKey(task) === groupKey,
-  );
-  if (matchesScheduledTask) return true;
-
-  return necessarySchedule
-    .filter((item) => item.enabled && !item.deleted)
-    .some((item) => {
-      const schedule = record.day < 5 ? item.weekday : item.weekend;
-      const start = toMinutes(schedule.start);
-      const end = toMinutes(schedule.end);
-      if (start === null || end === null || end <= start) return false;
-      const necessaryGroupKey = summaryGroupKey({
-        title: item.title,
-        category: "OTHER",
-        kind: "practice",
-        energy: item.energy,
-      });
-      return necessaryGroupKey === groupKey;
-    });
+function getActualScheduleEntries(day) {
+  const records = actualRecords
+    .filter((record) => record.day === day && record.end > calendarStart && record.start < calendarEnd)
+    .map((record) => ({ ...record, source: "record" }));
+  const checkedTasks = tasks
+    .filter(
+      (task) =>
+        task.day === day &&
+        task.start !== null &&
+        task.end !== null &&
+        task.end > task.start &&
+        completedUnitCount(task) > 0,
+    )
+    .flatMap((task) => {
+      const checkedMinutes = completedUnitCount(task) * tomatoMinutes;
+      const recordedMinutes = Math.max(0, recordedMinutesForTask(task) || 0);
+      if (checkedMinutes <= recordedMinutes) return [];
+      return [
+        {
+          ...task,
+          id: `checked-${task.id}`,
+          sourceTaskId: task.id,
+          start: Math.min(task.end, task.start + recordedMinutes),
+          end: Math.min(task.end, task.start + checkedMinutes),
+          source: "check",
+        },
+      ];
+    })
+    .filter((entry) => entry.end > entry.start);
+  return [...records, ...checkedTasks].sort((a, b) => a.start - b.start || a.end - b.end);
 }
 
-function renderUnplannedActualBlocks(column, day) {
-  actualRecords
-    .filter(
-      (record) =>
-        record.day === day &&
-        !actualRecordHasPlannedTask(record) &&
-        record.end > calendarStart &&
-        record.start < calendarEnd,
-    )
-    .forEach((record) => {
-      const top = (Math.max(record.start, calendarStart) - calendarStart) * pxPerMinute;
-      const bottom = (Math.min(record.end, calendarEnd) - calendarStart) * pxPerMinute;
+function layoutActualScheduleEntries(day) {
+  const entries = getActualScheduleEntries(day);
+  const active = [];
+  const placed = [];
+  entries.forEach((entry) => {
+    for (let index = active.length - 1; index >= 0; index -= 1) {
+      if (active[index].end <= entry.start) active.splice(index, 1);
+    }
+    let lane = 0;
+    while (active.some((item) => item.lane === lane)) lane += 1;
+    active.push({ end: entry.end, lane });
+    placed.push({ entry, lane, lanes: 1 });
+  });
+  placed.forEach((placedEntry) => {
+    const overlapping = placed.filter(
+      (item) => item.entry.start < placedEntry.entry.end && item.entry.end > placedEntry.entry.start,
+    );
+    placedEntry.lanes = Math.max(1, ...overlapping.map((item) => item.lane + 1));
+  });
+  return placed;
+}
+
+function renderActualScheduleBlocks(column, day) {
+  layoutActualScheduleEntries(day).forEach(({ entry, lane, lanes }) => {
+      const top = (Math.max(entry.start, calendarStart) - calendarStart) * pxPerMinute;
+      const bottom = (Math.min(entry.end, calendarEnd) - calendarStart) * pxPerMinute;
+      const gap = lanes > 1 ? 2 : 0;
       const block = document.createElement("div");
-      block.className = `task-card calendar-task actual-only-record ${taskKindClass(record.kind)}`;
+      block.className = `task-card calendar-task schedule-actual-block schedule-actual-layer ${taskKindClass(entry.kind)}`;
       block.style.top = `${top}px`;
       block.style.height = `${Math.max(5, bottom - top)}px`;
+      block.style.left = `calc(${(100 / lanes) * lane}% + ${gap / 2}px)`;
+      block.style.width = `calc(${100 / lanes}% - ${gap}px)`;
       block.innerHTML = `
         <div>
-          <strong>${escapeHtml(record.title)}</strong>
-          <span class="task-time">${fromMinutes(record.start)}-${fromMinutes(record.end)}</span>
+          <strong>${escapeHtml(entry.title)}</strong>
+          <span class="task-energy">${energyLabel(entry.energy)}</span>
+          <span class="task-time">${fromMinutes(entry.start)}-${fromMinutes(entry.end)}</span>
         </div>
       `;
-      block.title = `复盘实际记录：${record.title} · ${energyLabel(record.energy)}`;
+      block.addEventListener("click", (event) => {
+        event.stopPropagation();
+        toggleCalendarTaskDetails(block);
+      });
       column.appendChild(block);
-    });
+  });
 }
 
 function getSleepSegments(day) {
@@ -1558,11 +1849,13 @@ function getSleepSegments(day) {
 
 function addColumnDropHandlers(column) {
   column.addEventListener("dragover", (event) => {
+    if (scheduleLayer !== "plan") return;
     event.preventDefault();
     column.classList.add("drag-over");
   });
   column.addEventListener("dragleave", () => column.classList.remove("drag-over"));
   column.addEventListener("drop", (event) => {
+    if (scheduleLayer !== "plan") return;
     event.preventDefault();
     column.classList.remove("drag-over");
     const id = event.dataTransfer.getData("text/plain");
@@ -1581,11 +1874,13 @@ function addColumnDropHandlers(column) {
 
 function addInboxDropHandlers(panel) {
   panel.addEventListener("dragover", (event) => {
+    if (scheduleLayer !== "plan") return;
     event.preventDefault();
     panel.classList.add("drag-over");
   });
   panel.addEventListener("dragleave", () => panel.classList.remove("drag-over"));
   panel.addEventListener("drop", (event) => {
+    if (scheduleLayer !== "plan") return;
     event.preventDefault();
     panel.classList.remove("drag-over");
     const id = event.dataTransfer.getData("text/plain");
@@ -1737,9 +2032,6 @@ function renderReview() {
   ];
 
   $("#reviewRange").textContent = getWeekRange();
-  $("#reviewBoardCompareSummary").textContent = `已排 ${formatDuration(planTotals.scheduledMinutes)} · 待分配 ${formatDuration(
-    planTotals.pendingMinutes,
-  )} · 日历精度 5 分钟 · 1 番茄钟 = ${tomatoMinutes} 分钟`;
   metrics.innerHTML = `
     <div class="review-progress-card">
       <div class="review-ring ${completion > 100 ? "over-complete" : ""}" style="--percent: ${Math.min(completion, 100)}">
@@ -2236,6 +2528,55 @@ function removeWeekValue(weekId, key) {
   localStorage.removeItem(`${key}-${weekId}`);
 }
 
+function moveWeekValue(sourceWeekId, targetWeekId, key) {
+  const sourceKey = `${key}-${sourceWeekId}`;
+  const value = localStorage.getItem(sourceKey);
+  if (value !== null) localStorage.setItem(`${key}-${targetWeekId}`, value);
+  localStorage.removeItem(sourceKey);
+}
+
+function changeCurrentWeekStart(dateValue) {
+  if (!dateValue) {
+    render();
+    return;
+  }
+  const selectedDate = dateFromWeekId(dateValue);
+  if (Number.isNaN(selectedDate.getTime())) {
+    render();
+    return;
+  }
+  const targetWeekId = getWeekId(selectedDate);
+  if (targetWeekId === currentWeekId) {
+    render();
+    return;
+  }
+  if (weeks.some((week) => week.id === targetWeekId)) {
+    alert(`日期 ${formatWeekRangeFromMonday(dateFromWeekId(targetWeekId))} 已经有一张周看板，不能覆盖。`);
+    render();
+    return;
+  }
+
+  const sourceWeekId = currentWeekId;
+  [storageKey, summaryOrderKey, sleepScheduleKey, planTargetsKey, necessaryScheduleKey, actualRecordsKey, profileKey].forEach(
+    (key) => moveWeekValue(sourceWeekId, targetWeekId, key),
+  );
+
+  const week = weeks.find((item) => item.id === sourceWeekId);
+  const range = formatWeekRangeFromMonday(dateFromWeekId(targetWeekId));
+  if (week) {
+    week.id = targetWeekId;
+    week.range = range;
+    week.title = `${range} 周看板`;
+  } else {
+    weeks.push(makeWeek(targetWeekId));
+  }
+  currentWeekId = targetWeekId;
+  localStorage.setItem(activeWeekKey, currentWeekId);
+  saveWeeks();
+  undoStack = [];
+  render();
+}
+
 function cloneTasksForNewWeek(sourceTasks) {
   return sourceTasks.map((task) => ({
     ...task,
@@ -2365,6 +2706,8 @@ function render() {
   $("#ownerName").value = boardProfile.ownerName;
   $("#calendarStartTime").value = boardProfile.start;
   $("#calendarEndTime").value = boardProfile.end === "24:00" ? "23:59" : boardProfile.end;
+  $("#weekStartDate").value = currentWeekId;
+  $("#weekEndDate").textContent = getWeekEndId(currentWeekId);
   renderNecessarySettings();
   renderSummary();
   renderSchedule();
@@ -2479,6 +2822,23 @@ function bindEvents() {
   $("#homeBtn")?.addEventListener("click", showHome);
   $("#addTopTaskBtn")?.addEventListener("click", addTaskFromTopPanel);
   $("#addActualBtn")?.addEventListener("click", addActualRecord);
+  $("#saveQuickActualBtn")?.addEventListener("click", saveQuickActualFromDialog);
+  $("#quickActualTask")?.addEventListener("change", (event) => {
+    const task = tasks.find((item) => item.id === event.target.value);
+    if (task) fillQuickActualTaskFields(task);
+  });
+  $("#quickActualTitle")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    saveQuickActualFromDialog();
+  });
+  $("#weekStartDate")?.addEventListener("change", (event) => changeCurrentWeekStart(event.target.value));
+  document.querySelectorAll("[data-schedule-layer]").forEach((button) => {
+    button.addEventListener("click", () => {
+      scheduleLayer = button.dataset.scheduleLayer;
+      renderSchedule();
+    });
+  });
   $("#ownerName")?.addEventListener("change", () => {
     captureUndo();
     boardProfile.ownerName = $("#ownerName").value.trim() || "我的";
@@ -2947,9 +3307,10 @@ function createPdfCaptureNode() {
   const calendarHeight = Number.parseFloat(grid?.style.getPropertyValue("--calendar-height")) || (calendarEnd - calendarStart) * pxPerMinute;
   const scheduleScale = 0.78;
   if (grid && shell) {
+    grid.classList.remove("show-actual");
     grid.style.transform = `scaleY(${scheduleScale})`;
     grid.style.transformOrigin = "top left";
-    shell.style.height = `${(48 + calendarHeight) * scheduleScale}px`;
+    shell.style.height = `${calendarHeight * scheduleScale}px`;
     shell.style.overflow = "hidden";
   }
 

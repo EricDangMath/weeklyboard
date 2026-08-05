@@ -36,6 +36,14 @@
                 <input id="calendarEndTime" type="time" value="23:59" />
               </span>
             </label>
+            <label class="week-date-field">
+              本周日期
+              <span class="week-date-row">
+                <input id="weekStartDate" type="date" aria-label="本周周一日期" />
+                <span>至</span>
+                <output id="weekEndDate" aria-label="本周周日日期"></output>
+              </span>
+            </label>
           </div>
         </div>
 
@@ -195,6 +203,13 @@
           </table>
 
           <div class="schedule-shell">
+            <div class="schedule-layer-bar">
+              <div class="schedule-layer-tabs" role="tablist" aria-label="时间表图层">
+                <button class="schedule-layer-button active" data-schedule-layer="plan" type="button" role="tab" aria-selected="true">预计</button>
+                <button class="schedule-layer-button" data-schedule-layer="actual" type="button" role="tab" aria-selected="false">实际</button>
+              </div>
+              <span class="schedule-layer-summary" id="scheduleLayerSummary"></span>
+            </div>
             <div class="schedule-grid" id="scheduleGrid"></div>
           </div>
         </section>
@@ -252,20 +267,6 @@
           <section class="review-purpose">
             <strong>复盘不是只看效率</strong>
             <span>看见时间去向，检查吃、睡、动对精力的影响，并持续保护每日修炼和生命系统。</span>
-          </section>
-
-          <section class="review-board-section">
-            <div class="review-board-heading">
-              <div>
-                <h3>计划与实际周看板</h3>
-                <p id="reviewBoardCompareSummary">同一时间轴上直接比较每天的安排。</p>
-              </div>
-              <div class="review-board-legend">
-                <span><i class="legend-plan"></i>浅色计划</span>
-                <span><i class="legend-actual"></i>实色实际</span>
-              </div>
-            </div>
-            <div class="review-plan-board" id="reviewPlanBoard"></div>
           </section>
 
           <div class="review-columns">
@@ -361,6 +362,72 @@
           <span></span>
           <button class="secondary-button" value="cancel" type="submit">取消</button>
           <button class="primary-button" id="saveTaskBtn" value="default" type="button">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="quickActualDialog">
+      <form method="dialog" class="dialog-card">
+        <h2>记录完成内容</h2>
+        <label>
+          对应任务
+          <select id="quickActualTask">
+            <option value="">新完成事项</option>
+          </select>
+        </label>
+        <label>
+          完成了什么
+          <input id="quickActualTitle" placeholder="填写完成内容" />
+        </label>
+        <label>
+          日期
+          <select id="quickActualDay">
+            <option value="0">周一</option>
+            <option value="1">周二</option>
+            <option value="2">周三</option>
+            <option value="3">周四</option>
+            <option value="4">周五</option>
+            <option value="5">周六</option>
+            <option value="6">周日</option>
+          </select>
+        </label>
+        <div class="dialog-row">
+          <label>
+            开始
+            <input id="quickActualStart" type="time" />
+          </label>
+          <label>
+            结束
+            <input id="quickActualEnd" type="time" />
+          </label>
+        </div>
+        <div class="dialog-row">
+          <label>
+            分类
+            <select id="quickActualKind">
+              <option value="fixed">固定日程</option>
+              <option value="focus" selected>本周重点</option>
+              <option value="practice">每日必修</option>
+              <option value="explore">学术探索</option>
+              <option value="leisure">放松娱乐</option>
+              <option value="buffer">缓冲复盘</option>
+            </select>
+          </label>
+          <label>
+            精力
+            <select id="quickActualEnergy">
+              <option value="high">高精力</option>
+              <option value="medium" selected>中精力</option>
+              <option value="low">低精力</option>
+              <option value="recovery">精力恢复</option>
+            </select>
+          </label>
+        </div>
+        <div class="dialog-actions quick-actual-actions">
+          <span></span>
+          <span></span>
+          <button class="secondary-button" value="cancel" type="submit">取消</button>
+          <button class="primary-button" id="saveQuickActualBtn" value="default" type="button">保存完成记录</button>
         </div>
       </form>
     </dialog>

@@ -131,6 +131,34 @@ button {
   gap: 5px;
 }
 
+.profile-grid .week-date-field {
+  grid-column: 1 / -1;
+}
+
+.week-date-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.week-date-row > span {
+  color: rgba(255, 255, 255, 0.72);
+  text-align: center;
+}
+
+.week-date-row output {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 4px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+}
+
 .panel-section {
   margin-top: 22px;
   padding: 18px;
@@ -802,15 +830,60 @@ select {
   box-shadow: var(--shadow);
 }
 
+.schedule-layer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  padding: 5px 8px;
+  border: 1px solid #858585;
+  border-bottom: 0;
+  background: #f5f5f5;
+}
+
+.schedule-layer-tabs {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #111;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.schedule-layer-button {
+  min-width: 70px;
+  min-height: 28px;
+  padding: 3px 12px;
+  border: 0;
+  border-right: 1px solid #111;
+  color: #111;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.schedule-layer-button:last-child {
+  border-right: 0;
+}
+
+.schedule-layer-button.active {
+  background: var(--header);
+}
+
+.schedule-layer-summary {
+  color: #333;
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .schedule-grid {
   display: grid;
   grid-template-columns: var(--sort-col) var(--task-col) var(--plan-col) var(--actual-col) repeat(7, minmax(var(--day-col-min), 1fr));
-  grid-template-rows: 48px var(--calendar-height);
+  grid-template-rows: var(--calendar-height);
   border-top: 1px solid #858585;
   border-left: 1px solid #858585;
 }
 
-.calendar-header,
 .schedule-inbox,
 .day-column {
   position: relative;
@@ -818,22 +891,6 @@ select {
   border-right: 1px solid #858585;
   border-bottom: 1px solid #858585;
   background: #fff;
-}
-
-.calendar-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #111;
-  background: var(--blue);
-  font-weight: 900;
-  position: sticky;
-  top: 0;
-  z-index: 4;
-}
-
-.inbox-header-cell {
-  background: #f1f7ff;
 }
 
 .schedule-inbox,
@@ -844,6 +901,7 @@ select {
 .schedule-inbox {
   display: grid;
   grid-template-columns: 1fr 64px;
+  grid-template-rows: 1fr;
   overflow: hidden;
   background: #f1f7ff;
 }
@@ -854,10 +912,117 @@ select {
 
 .schedule-inbox-content {
   display: flex;
+  grid-column: 1;
+  grid-row: 1;
   flex-direction: column;
   gap: 10px;
   overflow: auto;
   padding: 12px;
+}
+
+.schedule-grid.show-actual .schedule-plan-layer {
+  opacity: 0.2 !important;
+  pointer-events: none;
+}
+
+.schedule-grid.show-actual .calendar-task.schedule-plan-layer {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.schedule-grid.show-actual .calendar-task.schedule-plan-layer:hover {
+  z-index: 7;
+  opacity: 0.42 !important;
+  outline: 2px solid #111;
+  outline-offset: -2px;
+}
+
+.schedule-grid.show-actual .schedule-inbox-content {
+  display: none !important;
+}
+
+.schedule-grid.show-actual .schedule-actual-sidebar {
+  display: flex !important;
+}
+
+.schedule-grid.show-actual .schedule-actual-block {
+  display: grid !important;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.schedule-actual-sidebar {
+  display: none !important;
+  grid-column: 1;
+  grid-row: 1;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  padding: 12px;
+  background: #f4f8fb;
+}
+
+.schedule-actual-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #aeb9c1;
+}
+
+.schedule-actual-heading strong {
+  font-size: 14px;
+}
+
+.schedule-actual-heading span {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.schedule-actual-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  overflow: auto;
+}
+
+.schedule-actual-list-item {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 5px 7px;
+  border: 1px solid #111;
+  font-size: 11px;
+}
+
+.schedule-actual-list-item span,
+.schedule-actual-list-item strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-actual-delete {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #111;
+  border-radius: 3px;
+  color: #fff;
+  background: #b42318;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.schedule-actual-delete:hover,
+.schedule-actual-delete:focus-visible {
+  background: #8f1c13;
+  outline: 2px solid #111;
+  outline-offset: 1px;
 }
 
 .schedule-inbox-content .task-card {
@@ -924,6 +1089,8 @@ select {
 
 .time-ruler {
   position: relative;
+  grid-column: 2;
+  grid-row: 1;
   z-index: 3;
   border-left: 1px solid rgba(44, 44, 44, 0.24);
   background: #fff;
@@ -982,6 +1149,23 @@ select {
   color: #111;
   background: rgba(254, 218, 10, 0.72);
   font-size: 12px;
+  font-weight: 900;
+  pointer-events: none;
+}
+
+.actual-drag-draft {
+  position: absolute;
+  right: 2px;
+  left: 2px;
+  z-index: 9;
+  display: flex;
+  align-items: flex-start;
+  padding: 5px 6px;
+  overflow: hidden;
+  border: 2px dashed #111;
+  color: #103819;
+  background: rgba(114, 207, 130, 0.7);
+  font-size: 11px;
   font-weight: 900;
   pointer-events: none;
 }
@@ -1205,16 +1389,14 @@ select {
   pointer-events: none;
 }
 
-.actual-only-record {
-  left: 48%;
-  right: 0;
+.schedule-actual-block {
+  display: grid !important;
   z-index: 5;
   grid-template-columns: 1fr;
-  width: auto;
-  border: 2px solid var(--green);
-  border-left-width: 5px;
+  border-width: 2px;
   background-image: none;
-  opacity: 0.94;
+  opacity: 0.18;
+  pointer-events: none;
 }
 
 .hidden {
@@ -1824,9 +2006,8 @@ select {
   margin-top: 10px;
 }
 
-.pdf-capture .calendar-header {
-  position: relative;
-  top: auto;
+.pdf-capture .schedule-layer-bar {
+  display: none;
 }
 
 .pdf-capture .calendar-task:hover {
@@ -1880,6 +2061,10 @@ dialog::backdrop {
 .dialog-actions {
   display: grid;
   grid-template-columns: auto 1fr auto auto;
+}
+
+.quick-actual-actions {
+  grid-template-columns: 1fr 1fr auto auto;
 }
 
 @media (max-width: 980px) {
@@ -1938,6 +2123,7 @@ dialog::backdrop {
   .control-panel,
   .board-toolbar,
   .review-view,
+  .schedule-layer-bar,
   dialog {
     display: none !important;
   }
@@ -1968,8 +2154,4 @@ dialog::backdrop {
     margin-top: 12px;
   }
 
-  .calendar-header {
-    position: relative;
-    top: auto;
-  }
 }
