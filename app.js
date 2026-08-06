@@ -16,6 +16,16 @@ const actualRecordsKey = "interactive-week-board-actual-records-v1";
 const profileKey = "interactive-week-board-profile-v1";
 const weeksKey = "interactive-week-board-weeks-v1";
 const activeWeekKey = "interactive-week-board-active-week-v1";
+const layoutSettingsKey = "interactive-week-board-layout-v1";
+const defaultLayoutSettings = Object.freeze({
+  zoom: 100,
+  homeTab: true,
+  boardTab: true,
+  reviewTab: true,
+  sidebar: true,
+  summary: true,
+  schedule: true,
+});
 
 let tasks = [];
 let summaryOrder = [];
@@ -36,6 +46,7 @@ let activeTaskDrag = null;
 let activeSummaryGroupDrag = null;
 let actualDraftGroupKey = "";
 let scheduleLayer = "plan";
+let layoutSettings = { ...defaultLayoutSettings };
 
 const demoText = `周一 6:30-7:00 BREAKFAST
 周一 8-9 SPANISH
@@ -68,6 +79,69 @@ const demoText = `周一 6:30-7:00 BREAKFAST
 
 const $ = (selector) => document.querySelector(selector);
 
+function loadLayoutSettings() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(layoutSettingsKey) || "{}");
+    layoutSettings = Object.fromEntries(
+      Object.entries(defaultLayoutSettings).map(([key, fallback]) => {
+        if (key === "zoom") {
+          const value = Number(stored[key]);
+          return [key, Number.isFinite(value) ? Math.max(70, Math.min(130, value)) : fallback];
+        }
+        return [key, typeof stored[key] === "boolean" ? stored[key] : fallback];
+      }),
+    );
+  } catch {
+    layoutSettings = { ...defaultLayoutSettings };
+  }
+}
+
+function saveLayoutSettings() {
+  localStorage.setItem(layoutSettingsKey, JSON.stringify(layoutSettings));
+}
+
+function applyLayoutSettings() {
+  const zoom = Math.max(70, Math.min(130, Number(layoutSettings.zoom) || 100));
+  const scale = zoom / 100;
+  layoutSettings.zoom = zoom;
+  document.documentElement.style.setProperty("--board-zoom", String(scale));
+
+  const workspace = $("#boardWorkspace");
+  if (workspace) workspace.style.width = `${100 / scale}%`;
+
+  const visibilityTargets = {
+    homeTab: $("#homeBtn"),
+    boardTab: $("#boardTab"),
+    reviewTab: $("#reviewTab"),
+    sidebar: document.querySelector(".control-panel"),
+    summary: $("#summaryTable"),
+    schedule: $("#scheduleShell"),
+  };
+  Object.entries(visibilityTargets).forEach(([key, element]) => {
+    element?.classList.toggle("layout-hidden", !layoutSettings[key]);
+  });
+  document
+    .querySelector(".view-tabs")
+    ?.classList.toggle("layout-hidden", !layoutSettings.homeTab && !layoutSettings.boardTab && !layoutSettings.reviewTab);
+  document.querySelector(".app-shell")?.classList.toggle("sidebar-hidden", !layoutSettings.sidebar);
+
+  const range = $("#zoomRange");
+  if (range) range.value = String(zoom);
+  const output = $("#zoomValue");
+  if (output) output.textContent = `${zoom}%`;
+  if ($("#zoomOutBtn")) $("#zoomOutBtn").disabled = zoom <= 70;
+  if ($("#zoomInBtn")) $("#zoomInBtn").disabled = zoom >= 130;
+  document.querySelectorAll("[data-layout-toggle]").forEach((input) => {
+    input.checked = Boolean(layoutSettings[input.dataset.layoutToggle]);
+  });
+}
+
+function setBoardZoom(value) {
+  layoutSettings.zoom = Math.max(70, Math.min(130, Math.round(Number(value) || 100)));
+  saveLayoutSettings();
+  applyLayoutSettings();
+}
+
 function uid() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -84,7 +158,8 @@ function toMinutes(time) {
 
 function snapCalendarMinutes(clientY, column) {
   const rect = column.getBoundingClientRect();
-  const rawMinutes = calendarStart + (clientY - rect.top) / pxPerMinute;
+  const renderedScale = column.offsetHeight > 0 ? rect.height / column.offsetHeight : 1;
+  const rawMinutes = calendarStart + (clientY - rect.top) / (pxPerMinute * (renderedScale || 1));
   const snappedMinutes = Math.round(rawMinutes / snapMinutes) * snapMinutes;
   return Math.max(calendarStart, Math.min(calendarEnd, snappedMinutes));
 }
@@ -1333,29 +1408,9 @@ function syncScheduleLayerUI() {
   $("#scheduleLayerSummary").textContent = `预计 ${formatDuration(planMinutes)} · 实际 ${formatDuration(actualMinutes)}`;
 }
 
-function renderSchedule() {
-  const grid = $("#scheduleGrid");
-  grid.innerHTML = "";
-  grid.style.setProperty("--calendar-height", `${(calendarEnd - calendarStart) * pxPerMinute}px`);
-
-  const leftPanel = document.createElement("div");
-  leftPanel.className = "schedule-inbox";
-  leftPanel.style.gridColumn = "span 4";
-  addInboxDropHandlers(leftPanel);
-
-  const inboxContent = document.createElement("div");
-  inboxContent.className = "schedule-inbox-content schedule-plan-layer";
-  const inboxTasks = tasks.filter((task) => task.day < 0 || task.start === null || task.end === null);
-  if (inboxTasks.length) {
-    inboxTasks.forEach((task) => inboxContent.appendChild(createTaskCard(task)));
-  } else {
-    inboxContent.innerHTML = `<p class="inbox-empty">没有待安排任务。</p>`;
-  }
-  leftPanel.appendChild(inboxContent);
-  leftPanel.appendChild(createActualScheduleSidebar());
-
-  const sleepControls = document.createElement("div");
-  sleepControls.className = "sleep-controls";
+function renderSleepSettings() {
+  const sleepControls = $("#sleepSettings");
+  if (!sleepControls) return;
   sleepControls.innerHTML = `
     <div class="sleep-title">
       <span>睡眠时间</span>
@@ -1377,8 +1432,7 @@ function renderSchedule() {
       )
       .join("")}
   `;
-  sleepControls.querySelectorAll("input").forEach((input) => {
-    if (!input.dataset.day) return;
+  sleepControls.querySelectorAll("input[data-day]").forEach((input) => {
     input.addEventListener("change", () => {
       captureUndo();
       sleepSchedule[Number(input.dataset.day)][input.dataset.field] = input.value;
@@ -1394,7 +1448,28 @@ function renderSchedule() {
     saveSleepSchedule();
     render();
   });
-  inboxContent.appendChild(sleepControls);
+}
+
+function renderSchedule() {
+  const grid = $("#scheduleGrid");
+  grid.innerHTML = "";
+  grid.style.setProperty("--calendar-height", `${(calendarEnd - calendarStart) * pxPerMinute}px`);
+
+  const leftPanel = document.createElement("div");
+  leftPanel.className = "schedule-inbox";
+  leftPanel.style.gridColumn = "span 4";
+  addInboxDropHandlers(leftPanel);
+
+  const inboxContent = document.createElement("div");
+  inboxContent.className = "schedule-inbox-content schedule-plan-layer";
+  const inboxTasks = tasks.filter((task) => task.day < 0 || task.start === null || task.end === null);
+  if (inboxTasks.length) {
+    inboxTasks.forEach((task) => inboxContent.appendChild(createTaskCard(task)));
+  } else {
+    inboxContent.innerHTML = `<p class="inbox-empty">没有待安排任务。</p>`;
+  }
+  leftPanel.appendChild(inboxContent);
+  leftPanel.appendChild(createActualScheduleSidebar());
 
   const ruler = document.createElement("div");
   ruler.className = "time-ruler";
@@ -2709,6 +2784,7 @@ function render() {
   $("#weekStartDate").value = currentWeekId;
   $("#weekEndDate").textContent = getWeekEndId(currentWeekId);
   renderNecessarySettings();
+  renderSleepSettings();
   renderSummary();
   renderSchedule();
   renderReview();
@@ -2820,6 +2896,21 @@ function addTaskFromTopPanel() {
 function bindEvents() {
   $("#addWeekBtn")?.addEventListener("click", addNextWeek);
   $("#homeBtn")?.addEventListener("click", showHome);
+  $("#zoomRange")?.addEventListener("input", (event) => setBoardZoom(event.target.value));
+  $("#zoomOutBtn")?.addEventListener("click", () => setBoardZoom(layoutSettings.zoom - 10));
+  $("#zoomInBtn")?.addEventListener("click", () => setBoardZoom(layoutSettings.zoom + 10));
+  $("#resetLayoutBtn")?.addEventListener("click", () => {
+    layoutSettings = { ...defaultLayoutSettings };
+    saveLayoutSettings();
+    applyLayoutSettings();
+  });
+  document.querySelectorAll("[data-layout-toggle]").forEach((input) => {
+    input.addEventListener("change", () => {
+      layoutSettings[input.dataset.layoutToggle] = input.checked;
+      saveLayoutSettings();
+      applyLayoutSettings();
+    });
+  });
   $("#addTopTaskBtn")?.addEventListener("click", addTaskFromTopPanel);
   $("#addActualBtn")?.addEventListener("click", addActualRecord);
   $("#saveQuickActualBtn")?.addEventListener("click", saveQuickActualFromDialog);
@@ -2888,6 +2979,7 @@ function bindEvents() {
   });
   bindDeleteDropZone();
   document.addEventListener("click", (event) => {
+    if (!event.target.closest("#layoutMenu")) $("#layoutMenu")?.removeAttribute("open");
     if (event.target.closest(".calendar-task")) return;
     document.querySelectorAll(".calendar-task.show-details").forEach((card) => card.classList.remove("show-details"));
   });
@@ -2916,25 +3008,6 @@ function bindEvents() {
     tasks = parseTasks(demoText);
     planTargets = {};
     savePlanTargets();
-    save();
-    render();
-  });
-  $("#addQuickBtn").addEventListener("click", () => {
-    const title = $("#quickTitle").value.trim() || "新任务";
-    captureUndo();
-    tasks.push({
-      id: uid(),
-      title,
-      day: -1,
-      start: null,
-      end: null,
-      category: inferCategory(title),
-      kind: "focus",
-      energy: "medium",
-      done: false,
-      completedUnits: [],
-    });
-    $("#quickTitle").value = "";
     save();
     render();
   });
@@ -3363,5 +3436,7 @@ async function exportPdf() {
 
 loadWeeks();
 load();
+loadLayoutSettings();
 bindEvents();
+applyLayoutSettings();
 showHome();

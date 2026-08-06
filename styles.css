@@ -14,6 +14,7 @@
   --plan-col: 140px;
   --actual-col: 126px;
   --day-col-min: 156px;
+  --board-zoom: 1;
 }
 
 * {
@@ -42,6 +43,10 @@ button {
   display: grid;
   grid-template-columns: 500px minmax(760px, 1fr);
   min-height: 100vh;
+}
+
+.app-shell.sidebar-hidden {
+  grid-template-columns: minmax(760px, 1fr);
 }
 
 .control-panel {
@@ -339,11 +344,6 @@ select {
   font-size: 12px;
 }
 
-.quick-form {
-  display: grid;
-  gap: 10px;
-}
-
 .top-task-form {
   display: grid;
   gap: 8px;
@@ -498,11 +498,152 @@ select {
 }
 
 .board-toolbar {
+  align-items: flex-start;
+  flex-wrap: wrap;
   margin-bottom: 14px;
 }
 
 .board-toolbar .kicker {
   color: var(--green);
+}
+
+.board-actions,
+.layout-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.board-actions {
+  max-width: 100%;
+  margin-left: auto;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.layout-controls {
+  position: relative;
+  min-height: 48px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.layout-controls input[type="range"] {
+  width: 92px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  accent-color: var(--green);
+}
+
+.layout-controls output {
+  min-width: 44px;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.layout-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid #aaa;
+  border-radius: 5px;
+  color: #111;
+  background: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.layout-icon-button:hover,
+.layout-icon-button:focus-visible {
+  border-color: #111;
+  background: var(--header);
+  outline: none;
+}
+
+.layout-menu {
+  position: relative;
+}
+
+.layout-menu > summary {
+  list-style: none;
+}
+
+.layout-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.layout-menu[open] > summary {
+  border-color: #111;
+  background: var(--header);
+}
+
+.layout-popover {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  z-index: 80;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px 14px;
+  width: 280px;
+  padding: 14px;
+  border: 1px solid #111;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(22, 22, 22, 0.18);
+}
+
+.layout-popover strong {
+  grid-column: 1 / -1;
+  padding-top: 3px;
+  font-size: 12px;
+}
+
+.layout-popover label {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.layout-popover input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--green);
+}
+
+.layout-reset-button {
+  grid-column: 1 / -1;
+  min-height: 32px;
+  margin-top: 4px;
+  border: 1px solid #999;
+  border-radius: 5px;
+  color: #111;
+  background: #f2f2f2;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.board-workspace {
+  zoom: var(--board-zoom);
+}
+
+.layout-hidden {
+  display: none !important;
 }
 
 .view-tabs {
@@ -1030,9 +1171,16 @@ select {
 }
 
 .sleep-controls {
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid rgba(44, 44, 44, 0.22);
+  margin: 0;
+}
+
+.sleep-settings-panel {
+  padding: 16px;
+}
+
+.sleep-settings-panel .sleep-title,
+.sleep-settings-panel .sleep-row {
+  color: #fff;
 }
 
 .sleep-title {
@@ -1048,7 +1196,7 @@ select {
 
 .sleep-week-apply {
   display: grid;
-  grid-template-columns: 62px 62px 42px;
+  grid-template-columns: 78px 78px 46px;
   gap: 4px;
 }
 
@@ -1085,6 +1233,10 @@ select {
   padding: 3px;
   border-radius: 4px;
   font-size: 11px;
+}
+
+.sleep-row:last-child {
+  margin-bottom: 0;
 }
 
 .time-ruler {
@@ -2081,6 +2233,15 @@ dialog::backdrop {
     padding: 16px;
   }
 
+  .board-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .board-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .actual-entry-form {
     grid-template-columns: 1fr 1fr;
   }
@@ -2139,6 +2300,11 @@ dialog::backdrop {
     overflow: visible;
     transform: scale(0.7);
     transform-origin: top left;
+  }
+
+  .board-workspace {
+    width: 100% !important;
+    zoom: 1 !important;
   }
 
   .summary-table-wrap {

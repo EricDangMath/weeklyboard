@@ -47,6 +47,10 @@
           </div>
         </div>
 
+        <section class="panel-section compact sleep-settings-panel">
+          <div class="sleep-controls" id="sleepSettings"></div>
+        </section>
+
         <section class="panel-section compact add-task-panel">
           <h2>时间分配</h2>
           <div class="top-task-form">
@@ -107,17 +111,6 @@
         </section>
 
         <section class="panel-section compact">
-          <h2>待分配任务</h2>
-          <div class="quick-form">
-            <input id="quickTitle" placeholder="写一个待安排任务" />
-          </div>
-          <div class="action-row">
-            <button class="secondary-button" id="addQuickBtn" type="button">加入收件箱</button>
-          </div>
-          <p class="hint small-hint">加入后会出现在收件箱，安排到日程表后再选择重要等级。</p>
-        </section>
-
-        <section class="panel-section compact">
           <h2>本周统计</h2>
           <div class="stats-grid">
             <div class="stat-card kind-focus">
@@ -168,15 +161,38 @@
             <p class="kicker">Eric D 周看板</p>
             <h2 id="boardTitle">本周计划</h2>
           </div>
-          <div class="view-tabs" role="tablist" aria-label="视图">
-            <button class="tab" id="homeBtn" type="button"><span class="tab-icon">⌂</span>首页</button>
-            <button class="tab active" data-view="board" type="button"><span class="tab-icon">▦</span>周看板</button>
-            <button class="tab" data-view="review" type="button"><span class="tab-icon">◉</span>复盘</button>
+          <div class="board-actions">
+            <div class="layout-controls" aria-label="看板缩放">
+              <button class="layout-icon-button" id="zoomOutBtn" type="button" title="缩小看板" aria-label="缩小看板">−</button>
+              <input id="zoomRange" type="range" min="70" max="130" step="5" value="100" aria-label="看板缩放比例" />
+              <output id="zoomValue" for="zoomRange">100%</output>
+              <button class="layout-icon-button" id="zoomInBtn" type="button" title="放大看板" aria-label="放大看板">＋</button>
+              <details class="layout-menu" id="layoutMenu">
+                <summary class="layout-icon-button" title="显示与隐藏" aria-label="显示与隐藏">☷</summary>
+                <div class="layout-popover">
+                  <strong>Tab 显示</strong>
+                  <label><input type="checkbox" data-layout-toggle="homeTab" checked />首页</label>
+                  <label><input type="checkbox" data-layout-toggle="boardTab" checked />周看板</label>
+                  <label><input type="checkbox" data-layout-toggle="reviewTab" checked />复盘</label>
+                  <strong>版面显示</strong>
+                  <label><input type="checkbox" data-layout-toggle="sidebar" checked />左侧设置</label>
+                  <label><input type="checkbox" data-layout-toggle="summary" checked />待分配任务</label>
+                  <label><input type="checkbox" data-layout-toggle="schedule" checked />时间表</label>
+                  <button class="layout-reset-button" id="resetLayoutBtn" type="button">恢复默认</button>
+                </div>
+              </details>
+            </div>
+            <div class="view-tabs" role="tablist" aria-label="视图">
+              <button class="tab" id="homeBtn" type="button"><span class="tab-icon">⌂</span>首页</button>
+              <button class="tab active" id="boardTab" data-view="board" type="button"><span class="tab-icon">▦</span>周看板</button>
+              <button class="tab" id="reviewTab" data-view="review" type="button"><span class="tab-icon">◉</span>复盘</button>
+            </div>
           </div>
         </div>
 
+        <div class="board-workspace" id="boardWorkspace">
         <section class="summary-table-wrap" id="boardView">
-          <table class="summary-table" aria-label="任务配额">
+          <table class="summary-table" id="summaryTable" aria-label="任务配额">
             <colgroup>
               <col class="sort-col" />
               <col class="task-col" />
@@ -202,7 +218,7 @@
             <tbody id="summaryBody"></tbody>
           </table>
 
-          <div class="schedule-shell">
+          <div class="schedule-shell" id="scheduleShell">
             <div class="schedule-layer-bar">
               <div class="schedule-layer-tabs" role="tablist" aria-label="时间表图层">
                 <button class="schedule-layer-button active" data-schedule-layer="plan" type="button" role="tab" aria-selected="true">预计</button>
@@ -288,6 +304,7 @@
             <div class="actual-record-list" id="actualRecordList"></div>
           </section>
         </section>
+        </div>
       </main>
     </div>
 
