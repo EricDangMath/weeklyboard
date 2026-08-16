@@ -1437,40 +1437,6 @@ select {
   font-weight: 900;
 }
 
-.cat-homework,
-.cat-java,
-.cat-english,
-.cat-math,
-.cat-science,
-.cat-sports,
-.cat-other {
-  color: #111;
-}
-
-.cat-java {
-  background: #9fe7ff;
-}
-
-.cat-english {
-  background: #ffd1dc;
-}
-
-.cat-math {
-  background: #c9f2c7;
-}
-
-.cat-science {
-  background: #d8d1ff;
-}
-
-.cat-sports {
-  background: #ffc66d;
-}
-
-.cat-other {
-  background: #ededed;
-}
-
 .kind-focus {
   background: var(--header);
 }

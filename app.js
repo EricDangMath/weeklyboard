@@ -221,28 +221,6 @@ function scopedKey(key) {
   return `${key}-${currentWeekId}`;
 }
 
-function inferCategory(title) {
-  const upper = title.toUpperCase();
-  if (/JAVA|CODING|代码|编程|项目/.test(upper)) return "JAVA";
-  if (/ENGLISH|英语|阅读|READ/.test(upper)) return "ENGLISH";
-  if (/MATH|数学|AMC|数论|NUMBER/.test(upper)) return "MATH";
-  if (/PHYSICS|BIOLOGY|SCIENCE|科学|物理|生物/.test(upper)) return "SCIENCE";
-  if (/SPORT|FITNESS|运动|健身|飞盘/.test(upper)) return "SPORTS";
-  if (/HOMEWORK|作业/.test(upper)) return "HOMEWORK";
-  return upper.length <= 16 && /^[A-Z\s]+$/.test(upper) ? upper : "OTHER";
-}
-
-function categoryClass(category) {
-  const text = category.toLowerCase();
-  if (text.includes("java") || text.includes("coding")) return "cat-java";
-  if (text.includes("english")) return "cat-english";
-  if (text.includes("math") || text.includes("number")) return "cat-math";
-  if (text.includes("physics") || text.includes("science") || text.includes("biology")) return "cat-science";
-  if (text.includes("sport") || text.includes("fitness")) return "cat-sports";
-  if (text.includes("homework")) return "cat-homework";
-  return "cat-other";
-}
-
 function inferTaskKind(line, title) {
   const text = `${line} ${title}`.toLowerCase();
   if (/复盘|缓冲|调整|buffer|review/.test(text)) return "buffer";
@@ -346,11 +324,9 @@ function parseTasks(text) {
       const dayIndexes = parseDayIndexes(line);
       const time = parseTime(line);
       const title = cleanTitle(line) || "未命名任务";
-      const category = inferCategory(title);
       const kind = inferTaskKind(line, title);
       const base = {
         title,
-        category,
         kind,
         done: false,
         completedUnits: [],
@@ -438,7 +414,7 @@ function normalizeActualRecordList(records) {
   return records
     .filter((record) => record && typeof record === "object")
     .map((record) => {
-      const { energy: _legacyEnergy, ...rest } = record;
+      const { energy: _legacyEnergy, category: _legacyCategory, ...rest } = record;
       return {
         ...rest,
         id: record.id || uid(),
@@ -640,7 +616,13 @@ function normalizeNecessarySchedule(schedule) {
 
 function normalizeTaskKind(task) {
   delete task.energy;
-  task.kind = normalizeKindValue(task.kind || inferTaskKind(task.title || "", task.title || ""));
+  const kind = normalizeKindValue(task.kind || inferTaskKind(task.title || "", task.title || ""));
+  if (Object.prototype.hasOwnProperty.call(task, "category")) {
+    const legacyLabel = task.category && task.category !== "OTHER" ? task.category : taskNameLabel(task);
+    task._legacyGroupKey = `${kind}:${legacyLabel}`;
+  }
+  delete task.category;
+  task.kind = kind;
 }
 
 function migrateLegacyGroupKeys() {
@@ -649,10 +631,40 @@ function migrateLegacyGroupKeys() {
     const [kind, ...rest] = key.split(":");
     return `${normalizeKindValue(kind)}:${rest.join(":")}`;
   };
-  planTargets = Object.fromEntries(Object.entries(planTargets).map(([key, value]) => [migrateKey(key), value]));
-  summaryOrder = [...new Set(summaryOrder.map(migrateKey))];
+  const normalizedTargets = Object.fromEntries(Object.entries(planTargets).map(([key, value]) => [migrateKey(key), value]));
+  const normalizedOrder = summaryOrder.map(migrateKey);
+  const keyMap = new Map();
+
+  tasks = tasks.filter((task) => !task.isPlanBuffer);
+  tasks.forEach((task) => {
+    const legacyKey = migrateKey(task._legacyGroupKey || summaryGroupKey(task));
+    const nextKey = summaryGroupKey(task);
+    if (!keyMap.has(legacyKey)) keyMap.set(legacyKey, []);
+    if (!keyMap.get(legacyKey).includes(nextKey)) keyMap.get(legacyKey).push(nextKey);
+    delete task._legacyGroupKey;
+  });
+
+  const nextTargets = {};
+  Object.entries(normalizedTargets).forEach(([legacyKey, value]) => {
+    const nextKeys = keyMap.get(legacyKey) || [];
+    if (!nextKeys.length) return;
+    const targetUnits = Math.max(0, Number(value) || 0);
+    const committedByKey = nextKeys.map((key) => {
+      const groupTasks = tasks.filter((task) => summaryGroupKey(task) === key);
+      return scheduledUnitCount(groupTasks) + manualInboxUnitCount(groupTasks);
+    });
+    const extraUnits = Math.max(0, targetUnits - committedByKey.reduce((sum, units) => sum + units, 0));
+    nextKeys.forEach((key, index) => {
+      nextTargets[key] = Math.max(Number(nextTargets[key] || 0), committedByKey[index] + (index === 0 ? extraUnits : 0));
+    });
+  });
+  planTargets = nextTargets;
+
+  summaryOrder = [...new Set(normalizedOrder.flatMap((key) => keyMap.get(key) || []))];
   actualRecords.forEach((record) => {
-    if (record.groupKey) record.groupKey = migrateKey(record.groupKey);
+    const mappedKeys = record.groupKey ? keyMap.get(migrateKey(record.groupKey)) : null;
+    if (mappedKeys?.length) record.groupKey = mappedKeys[0];
+    else delete record.groupKey;
   });
 }
 
@@ -792,8 +804,8 @@ function taskCheckDisplay(task) {
 }
 
 function setSummaryGroupKind(groupKey, kind) {
-  const { label: category } = parseSummaryGroupKey(groupKey);
-  const nextGroupKey = `${kind}:${category}`;
+  const { label: taskName } = parseSummaryGroupKey(groupKey);
+  const nextGroupKey = `${kind}:${taskName}`;
   tasks.forEach((task) => {
     if (summaryGroupKey(task) === groupKey) task.kind = kind;
   });
@@ -871,23 +883,21 @@ function syncPlanBuffer(groupKey) {
   if (targetUnits !== Number(planTargets[groupKey] || 0)) planTargets[groupKey] = targetUnits;
   const extraUnits = Math.max(0, targetUnits - committedUnits);
   const buffers = groupTasks.filter((task) => task.day < 0 && task.start === null && task.end === null && task.isPlanBuffer);
-  const { kind, label: category } = parseSummaryGroupKey(groupKey);
+  const { kind, label: taskName } = parseSummaryGroupKey(groupKey);
 
   if (extraUnits > 0) {
     const buffer = buffers[0];
     if (buffer) {
       buffer.plannedUnits = extraUnits;
-      buffer.title = category;
-      buffer.category = category;
+      buffer.title = taskName;
       buffer.kind = kind;
     } else {
       tasks.push({
         id: uid(),
-        title: category,
+        title: taskName,
         day: -1,
         start: null,
         end: null,
-        category,
         kind,
         plannedUnits: extraUnits,
         isPlanBuffer: true,
@@ -928,12 +938,10 @@ function removeTaskAndSyncPlan(taskId) {
 
 function summaryGroupKey(task) {
   normalizeTaskKind(task);
-  return `${task.kind}:${summaryGroupLabel(task)}`;
+  return `${task.kind}:${taskNameLabel(task)}`;
 }
 
-function summaryGroupLabel(task) {
-  const category = task.category || inferCategory(task.title);
-  if (category && category !== "OTHER") return category;
+function taskNameLabel(task) {
   return (task.title || "OTHER").replace(/:/g, " ").trim() || "OTHER";
 }
 
@@ -941,7 +949,6 @@ function actualRecordGroupKey(record) {
   if (record.groupKey) return record.groupKey;
   return summaryGroupKey({
     title: record.title || "OTHER",
-    category: inferCategory(record.title || ""),
     kind: record.kind || "fixed",
   });
 }
@@ -1032,7 +1039,7 @@ function parseSummaryGroupKey(groupKey) {
   return { kind, label: labelParts.join(":") };
 }
 
-function groupedByCategory() {
+function groupedByTaskName() {
   const map = new Map();
   tasks
     .filter((task) => {
@@ -1044,9 +1051,9 @@ function groupedByCategory() {
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(task);
     });
-  const groups = [...map.entries()].map(([key, categoryTasks]) => {
-    const { kind, label: category } = parseSummaryGroupKey(key);
-    return { key, kind, category, categoryTasks };
+  const groups = [...map.entries()].map(([key, groupTasks]) => {
+    const { kind, label: taskName } = parseSummaryGroupKey(key);
+    return { key, kind, taskName, groupTasks };
   });
   const visibleKeys = groups.map((group) => group.key);
   summaryOrder = [...summaryOrder.filter((key) => visibleKeys.includes(key)), ...visibleKeys.filter((key) => !summaryOrder.includes(key))];
@@ -1057,21 +1064,21 @@ function renderSummary() {
   reconcilePlanBuffers();
   const body = $("#summaryBody");
   body.innerHTML = "";
-  groupedByCategory().forEach(({ key, kind, category, categoryTasks }, index) => {
+  groupedByTaskName().forEach(({ key, kind, taskName, groupTasks }, index) => {
     const row = document.createElement("tr");
-    const groupKey = `${kind}:${category}`;
+    const groupKey = `${kind}:${taskName}`;
     row.className = "summary-row";
     row.dataset.group = key;
     row.draggable = true;
-    const totalUnits = getGroupPlanUnits(groupKey, categoryTasks);
-    const actualMinutes = effectiveActualMinutesForGroup(groupKey, categoryTasks);
+    const totalUnits = getGroupPlanUnits(groupKey, groupTasks);
+    const actualMinutes = effectiveActualMinutesForGroup(groupKey, groupTasks);
     const groupComplete = totalUnits > 0 && actualMinutes >= totalUnits * tomatoMinutes;
     row.innerHTML = `
       <td class="summary-rank" title="拖拽排序">${index + 1}</td>
       <td class="summary-task ${taskKindClass(kind)}">
         <div class="summary-controls">
-          <span class="summary-title">${category}</span>
-          <select class="summary-kind-select" data-group="${escapeHtml(groupKey)}" aria-label="调整时间分类">
+          <span class="summary-title">${escapeHtml(taskName)}</span>
+          <select class="summary-kind-select" data-group="${escapeHtml(groupKey)}" aria-label="调整任务类型">
             ${taskKinds.map((value) => `<option value="${value}" ${kind === value ? "selected" : ""}>${taskKindLabel(value)}</option>`).join("")}
           </select>
         </div>
@@ -1079,8 +1086,8 @@ function renderSummary() {
       <td>
         <div class="plan-cell-metric">
           <input class="plan-input" data-group="${escapeHtml(groupKey)}" type="number" min="${scheduledUnitCount(
-            categoryTasks,
-          ) + manualInboxUnitCount(categoryTasks)}" step="1" value="${totalUnits}" aria-label="调整计划" />
+            groupTasks,
+          ) + manualInboxUnitCount(groupTasks)}" step="1" value="${totalUnits}" aria-label="调整计划" />
           <span class="plan-unit">番茄钟 = ${formatDuration(totalUnits * tomatoMinutes)}</span>
         </div>
       </td>
@@ -1091,7 +1098,7 @@ function renderSummary() {
       </td>
       ${days
         .map((_, day) => {
-          const dayTasks = categoryTasks.filter((task) => task.day === day);
+          const dayTasks = groupTasks.filter((task) => task.day === day);
           const dayUnits = dayTasks.reduce((sum, task) => sum + taskUnitCount(task), 0);
           return `
             <td>
@@ -1328,7 +1335,6 @@ function quickCompleteNecessaryItem(item, day, start, end) {
     start,
     end,
     kind: "practice",
-    category: "OTHER",
   };
   const groupKey = summaryGroupKey(entry);
   const recordedMinutes = actualRecords
@@ -1349,7 +1355,7 @@ function createTaskCard(task, mode = "stack") {
   const plannedMinutes = durationMinutes(task);
   const progressPercent = plannedMinutes ? Math.min(100, Math.round((progressMinutes / plannedMinutes) * 100)) : 0;
   const effectivelyDone = canCheck && isTaskEffectivelyDone(task);
-  card.className = `task-card ${mode === "calendar" ? "calendar-task" : ""} ${categoryClass(task.category)} ${taskKindClass(task.kind)} ${
+  card.className = `task-card ${mode === "calendar" ? "calendar-task" : ""} ${taskKindClass(task.kind)} ${
     effectivelyDone ? "done" : ""
   } ${progressPercent > 0 && !effectivelyDone ? "has-progress" : ""}`;
   if (progressPercent > 0 && !effectivelyDone) card.style.setProperty("--progress", `${progressPercent}%`);
@@ -1717,7 +1723,6 @@ function saveQuickActualFromDialog() {
       start: null,
       end: null,
       plannedUnits: actualUnits,
-      category: inferCategory(title),
       kind: $("#quickActualKind").value,
       done: false,
       completedUnits: [],
@@ -1765,7 +1770,6 @@ function handleCreateEnd(event) {
     day,
     start,
     end: Math.max(start + snapMinutes, end),
-    category: "OTHER",
     kind: "focus",
     done: false,
     completedUnits: [],
@@ -2253,7 +2257,6 @@ function getReviewPlannedEntries() {
           start,
           end,
           kind: "practice",
-          category: "OTHER",
           source: "necessary",
         });
       });
@@ -2273,10 +2276,10 @@ function getReviewPlanTotals(plannedEntries) {
   };
   let pendingMinutes = 0;
 
-  groupedByCategory().forEach(({ key, kind, categoryTasks }) => {
-    const targetUnits = getGroupPlanUnits(key, categoryTasks);
+  groupedByTaskName().forEach(({ key, kind, groupTasks }) => {
+    const targetUnits = getGroupPlanUnits(key, groupTasks);
     byKind[kind] += targetUnits * tomatoMinutes;
-    pendingMinutes += Math.max(0, targetUnits - scheduledUnitCount(categoryTasks)) * tomatoMinutes;
+    pendingMinutes += Math.max(0, targetUnits - scheduledUnitCount(groupTasks)) * tomatoMinutes;
   });
 
   plannedEntries
@@ -2305,7 +2308,7 @@ function getReviewActualTotals() {
   const byDay = Array(days.length).fill(0);
   const trackedKeys = new Set();
 
-  groupedByCategory().forEach(({ key, kind, categoryTasks }) => {
+  groupedByTaskName().forEach(({ key, kind, groupTasks }) => {
     trackedKeys.add(key);
     const records = actualRecordsForGroup(key);
     const recordedByDay = Array(days.length).fill(0);
@@ -2313,10 +2316,10 @@ function getReviewActualTotals() {
       if (record.day >= 0 && record.day < days.length) recordedByDay[record.day] += durationMinutes(record);
     });
     const checkedByDay = Array(days.length).fill(0);
-    categoryTasks.forEach((task) => {
+    groupTasks.forEach((task) => {
       if (task.day >= 0 && task.day < days.length) checkedByDay[task.day] += completedUnitCount(task) * tomatoMinutes;
     });
-    let groupMinutes = categoryTasks
+    let groupMinutes = groupTasks
       .filter((task) => task.day < 0)
       .reduce((sum, task) => sum + completedUnitCount(task) * tomatoMinutes, 0);
     days.forEach((_, day) => {
@@ -2895,9 +2898,6 @@ function openEditor(id) {
   $("#editDay").value = task.day;
   $("#editStart").value = task.start === null ? "" : fromMinutes(task.start);
   $("#editEnd").value = task.end === null ? "" : fromMinutes(task.end);
-  $("#editCategory").value = ["HOMEWORK", "JAVA", "ENGLISH", "MATH", "SCIENCE", "SPORTS"].includes(task.category)
-    ? task.category
-    : "OTHER";
   $("#editKind").value = normalizeKindValue(task.kind);
   $("#editDone").checked = isTaskDone(task);
   $("#taskDialog").showModal();
@@ -2920,7 +2920,6 @@ function addTaskFromTopPanel() {
     day: hasSchedule ? selectedDay : -1,
     start: hasSchedule ? start : null,
     end,
-    category: inferCategory(title),
     kind,
     plannedUnits: hasSchedule ? undefined : 1,
     done: false,
@@ -3063,7 +3062,6 @@ function bindEvents() {
     task.end = $("#editEnd").value ? toMinutes($("#editEnd").value) : null;
     if (isInboxTask(task)) moveTaskToInbox(task, taskUnitCount(task) || previousUnits);
     else delete task.plannedUnits;
-    task.category = $("#editCategory").value === "OTHER" ? inferCategory(task.title) : $("#editCategory").value;
     task.kind = $("#editKind").value;
     setTaskDone(task, $("#editDone").checked);
     const nextGroupKey = summaryGroupKey(task);
@@ -3187,7 +3185,7 @@ function downloadTextFile(contents, type, filename) {
 
 function downloadTimetableTemplate() {
   const csv = [
-    "星期,开始,结束,课程,分类",
+    "星期,开始,结束,课程,类型",
     "周一,08:00,08:45,数学,固定日程",
     "周一,09:00,09:45,英语,固定日程",
     "周三,16:00,17:00,图书馆探索,学术探索",
@@ -3253,7 +3251,6 @@ function importTimetableCsv(event) {
           day: dayIndexFromLabel(dayText),
           start: toMinutes(startText),
           end: toMinutes(endText),
-          category: inferCategory(titleText || "课程"),
           kind: kindFromLabel(kindText, "fixed"),
           done: false,
           completedUnits: [],
@@ -3319,7 +3316,6 @@ function importCalendarIcs(event) {
             day: (startDate.getDay() + 6) % 7,
             start: startDate.getHours() * 60 + startDate.getMinutes(),
             end: Math.min(24 * 60, end.getHours() * 60 + end.getMinutes()),
-            category: inferCategory(read("SUMMARY") || "日历事项"),
             kind: kindFromLabel(read("CATEGORIES"), "fixed"),
             done: false,
             completedUnits: [],

@@ -252,7 +252,7 @@
                 <option value="5">周六</option>
                 <option value="6">周日</option>
               </select>
-              <select id="actualKind" aria-label="实际事项分类">
+              <select id="actualKind" aria-label="实际事项类型">
                 <option value="fixed">固定日程</option>
                 <option value="focus">本周重点</option>
                 <option value="practice">每日必修</option>
@@ -279,7 +279,7 @@
               <div class="review-day-list" id="reviewDayList"></div>
             </section>
             <section>
-              <h3>分类实际 / 计划</h3>
+              <h3>类型实际 / 计划</h3>
               <div class="review-kind-list" id="reviewKindList"></div>
             </section>
           </div>
@@ -326,18 +326,6 @@
             <input id="editEnd" type="time" />
           </label>
         </div>
-        <label>
-          分类
-          <select id="editCategory">
-            <option>HOMEWORK</option>
-            <option>JAVA</option>
-            <option>ENGLISH</option>
-            <option>MATH</option>
-            <option>SCIENCE</option>
-            <option>SPORTS</option>
-            <option>OTHER</option>
-          </select>
-        </label>
         <label>
           类型
           <select id="editKind">
@@ -398,7 +386,7 @@
           </label>
         </div>
         <label>
-          分类
+          类型
           <select id="quickActualKind">
             <option value="fixed">固定日程</option>
             <option value="focus" selected>本周重点</option>
