@@ -63,12 +63,6 @@
               <option value="leisure">放松娱乐</option>
               <option value="buffer">缓冲复盘</option>
             </select>
-            <select id="topTaskEnergy" aria-label="所需精力">
-              <option value="high">高精力</option>
-              <option value="medium" selected>中精力</option>
-              <option value="low">低精力</option>
-              <option value="recovery">精力恢复</option>
-            </select>
             <select id="topTaskDay" aria-label="日期">
               <option value="-1">收件箱</option>
               <option value="0">周一</option>
@@ -243,7 +237,7 @@
             <div class="actual-entry-heading">
               <div>
                 <h3>记录实际时间</h3>
-                <p>记录时间、目标检视与精力状态；点击浅色计划块可直接带入。</p>
+                <p>记录时间并检视目标；点击浅色计划块可直接带入。</p>
               </div>
               <span class="actual-entry-status" id="actualEntryStatus">新记录</span>
             </div>
@@ -266,12 +260,6 @@
                 <option value="leisure">放松娱乐</option>
                 <option value="buffer">缓冲复盘</option>
               </select>
-              <select id="actualEnergy" aria-label="实际精力状态">
-                <option value="high">高精力</option>
-                <option value="medium" selected>中精力</option>
-                <option value="low">低精力</option>
-                <option value="recovery">精力恢复</option>
-              </select>
               <input id="actualStart" type="time" aria-label="实际开始时间" />
               <input id="actualEnd" type="time" aria-label="实际结束时间" />
               <button class="primary-button actual-add-button" id="addActualBtn" type="button">记录时间</button>
@@ -282,7 +270,7 @@
 
           <section class="review-purpose">
             <strong>复盘不是只看效率</strong>
-            <span>看见时间去向，检查吃、睡、动对精力的影响，并持续保护每日修炼和生命系统。</span>
+            <span>看见时间去向，检查吃、睡、动的安排，并持续保护每日修炼和生活节奏。</span>
           </section>
 
           <div class="review-columns">
@@ -361,15 +349,6 @@
             <option value="buffer">缓冲复盘</option>
           </select>
         </label>
-        <label>
-          精力
-          <select id="editEnergy">
-            <option value="high">高精力</option>
-            <option value="medium">中精力</option>
-            <option value="low">低精力</option>
-            <option value="recovery">精力恢复</option>
-          </select>
-        </label>
         <label class="checkbox-line">
           <input id="editDone" type="checkbox" />
           已完成
@@ -418,28 +397,17 @@
             <input id="quickActualEnd" type="time" />
           </label>
         </div>
-        <div class="dialog-row">
-          <label>
-            分类
-            <select id="quickActualKind">
-              <option value="fixed">固定日程</option>
-              <option value="focus" selected>本周重点</option>
-              <option value="practice">每日必修</option>
-              <option value="explore">学术探索</option>
-              <option value="leisure">放松娱乐</option>
-              <option value="buffer">缓冲复盘</option>
-            </select>
-          </label>
-          <label>
-            精力
-            <select id="quickActualEnergy">
-              <option value="high">高精力</option>
-              <option value="medium" selected>中精力</option>
-              <option value="low">低精力</option>
-              <option value="recovery">精力恢复</option>
-            </select>
-          </label>
-        </div>
+        <label>
+          分类
+          <select id="quickActualKind">
+            <option value="fixed">固定日程</option>
+            <option value="focus" selected>本周重点</option>
+            <option value="practice">每日必修</option>
+            <option value="explore">学术探索</option>
+            <option value="leisure">放松娱乐</option>
+            <option value="buffer">缓冲复盘</option>
+          </select>
+        </label>
         <div class="dialog-actions quick-actual-actions">
           <span></span>
           <span></span>

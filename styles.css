@@ -14,6 +14,10 @@
   --plan-col: 140px;
   --actual-col: 126px;
   --day-col-min: 156px;
+  --board-min-width: calc(
+    var(--sort-col) + var(--task-col) + var(--plan-col) + var(--actual-col) +
+      (var(--day-col-min) * 7)
+  );
   --board-zoom: 1;
 }
 
@@ -680,7 +684,7 @@ select {
 }
 
 .summary-table-wrap {
-  min-width: calc(var(--sort-col) + var(--task-col) + var(--plan-col) + var(--actual-col) + (var(--day-col-min) * 7));
+  min-width: var(--board-min-width);
 }
 
 .summary-table {
@@ -693,7 +697,7 @@ select {
 
 .summary-table th,
 .summary-table td {
-  padding: 5px 7px;
+  padding: 3px 6px;
   border: 1px solid #858585;
   text-align: center;
   vertical-align: middle;
@@ -703,7 +707,7 @@ select {
   position: sticky;
   top: 0;
   z-index: 8;
-  height: 48px;
+  height: 40px;
   color: #111;
   background: var(--header);
   font-size: 14px;
@@ -712,7 +716,7 @@ select {
 }
 
 .summary-table td {
-  height: 44px;
+  height: 34px;
 }
 
 .summary-table .unit-hint {
@@ -739,6 +743,10 @@ select {
   width: var(--actual-col);
 }
 
+.summary-table .day-col {
+  width: var(--day-col-min);
+}
+
 .summary-table th:nth-child(2),
 .summary-table td:nth-child(2) {
   text-align: left;
@@ -752,7 +760,7 @@ select {
 
 .plan-input {
   width: 40px;
-  min-height: 28px;
+  min-height: 24px;
   padding: 2px 4px;
   border: 1px solid rgba(22, 22, 22, 0.45);
   border-radius: 4px;
@@ -771,9 +779,7 @@ select {
 }
 
 .actual-cell-metric {
-  flex-direction: column;
-  gap: 1px;
-  line-height: 1.05;
+  line-height: 1;
 }
 
 .plan-unit {
@@ -784,11 +790,6 @@ select {
 
 .actual-cell-metric strong {
   font-size: 12px;
-}
-
-.actual-cell-metric small {
-  font-size: 10px;
-  font-weight: 900;
 }
 
 .summary-row {
@@ -881,7 +882,7 @@ select {
 }
 
 .summary-kind-select {
-  min-height: 24px;
+  min-height: 22px;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 900;
@@ -903,7 +904,7 @@ select {
   align-items: center;
   justify-content: center;
   min-width: 0;
-  min-height: 30px;
+  min-height: 24px;
 }
 
 .day-allocation .check-strip {
@@ -1041,7 +1042,9 @@ select {
 
 .schedule-inbox {
   display: grid;
-  grid-template-columns: 1fr 64px;
+  grid-template-columns:
+    calc(var(--sort-col) + var(--task-col) + var(--plan-col))
+    var(--actual-col);
   grid-template-rows: 1fr;
   overflow: hidden;
   background: #f1f7ff;
@@ -1382,14 +1385,6 @@ select {
   display: none;
 }
 
-.calendar-task .task-energy {
-  display: none;
-}
-
-.calendar-task:hover .task-energy {
-  display: block;
-}
-
 .calendar-task.show-details {
   z-index: 6;
   min-height: 44px;
@@ -1439,17 +1434,6 @@ select {
   color: #111;
   background: rgba(255, 255, 255, 0.72);
   font-size: 11px;
-  font-weight: 900;
-}
-
-.task-energy {
-  display: inline-flex;
-  margin-top: 4px;
-  padding: 1px 5px;
-  border: 1px solid rgba(17, 17, 17, 0.35);
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.58);
-  font-size: 10px;
   font-weight: 900;
 }
 
@@ -1632,7 +1616,7 @@ select {
 
 .actual-entry-form {
   display: grid;
-  grid-template-columns: minmax(170px, 1.6fr) minmax(82px, 0.6fr) minmax(110px, 0.85fr) minmax(105px, 0.78fr) minmax(105px, 0.78fr) minmax(105px, 0.78fr) auto;
+  grid-template-columns: minmax(190px, 1.8fr) minmax(82px, 0.6fr) minmax(120px, 0.9fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr) auto;
   gap: 8px;
   margin-top: 12px;
 }
@@ -2137,7 +2121,7 @@ select {
   position: fixed;
   left: -10000px;
   top: 0;
-  width: 1500px;
+  width: var(--board-min-width);
   padding: 0;
   background: #fff;
   color: #111;
@@ -2145,7 +2129,7 @@ select {
 }
 
 .pdf-capture .summary-table-wrap {
-  min-width: 0;
+  min-width: var(--board-min-width);
   width: 100%;
 }
 
@@ -2308,7 +2292,7 @@ dialog::backdrop {
   }
 
   .summary-table-wrap {
-    min-width: calc(var(--sort-col) + var(--task-col) + var(--plan-col) + var(--actual-col) + (var(--day-col-min) * 7));
+    min-width: var(--board-min-width);
   }
 
   .summary-table,
