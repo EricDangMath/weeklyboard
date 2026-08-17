@@ -701,6 +701,12 @@ function migrateLegacyGroupKeys() {
   const normalizedOrder = summaryOrder.map(migrateKey);
   const keyMap = new Map();
 
+  tasks.forEach((task) => {
+    if (task.isPlanBuffer && !isInboxTask(task)) {
+      delete task.isPlanBuffer;
+      delete task.plannedUnits;
+    }
+  });
   tasks = tasks.filter((task) => !task.isPlanBuffer);
   tasks.forEach((task) => {
     const legacyKey = migrateKey(task._legacyGroupKey || summaryGroupKey(task));
@@ -3188,13 +3194,14 @@ function bindEvents() {
 
 function exportJson() {
   const payload = {
-    version: 3,
+    version: 4,
     tasks,
     actualRecords,
     boardProfile,
     sleepSchedule,
     necessarySchedule,
     planTargets,
+    summaryOrder,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -3210,42 +3217,54 @@ function importJson(event) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => {
+    let previousState = null;
     try {
       const imported = JSON.parse(reader.result);
       const importedTasks = Array.isArray(imported) ? imported : imported.tasks;
-      if (!Array.isArray(importedTasks)) throw new Error("invalid");
+      if (!Array.isArray(importedTasks) || importedTasks.some((task) => !task || typeof task !== "object")) {
+        throw new Error("invalid");
+      }
+
+      previousState = {
+        tasks: cloneValue(tasks),
+        actualRecords: cloneValue(actualRecords),
+        boardProfile: cloneValue(boardProfile),
+        sleepSchedule: cloneValue(sleepSchedule),
+        necessarySchedule: cloneValue(necessarySchedule),
+        planTargets: cloneValue(planTargets),
+        summaryOrder: cloneValue(summaryOrder),
+      };
       captureUndo();
-      tasks = importedTasks;
-      if (!Array.isArray(imported) && Array.isArray(imported.actualRecords)) {
-        actualRecords = normalizeActualRecordList(imported.actualRecords);
-        saveActualRecords();
-      }
-      if (!Array.isArray(imported) && imported.boardProfile) {
-        boardProfile = normalizeBoardProfile(imported.boardProfile);
+      tasks = importedTasks.map((task) => ({ ...task }));
+      if (!Array.isArray(imported)) {
+        actualRecords = normalizeActualRecordList(Array.isArray(imported.actualRecords) ? imported.actualRecords : []);
+        boardProfile = normalizeBoardProfile(imported.boardProfile || {});
+        if (Array.isArray(imported.sleepSchedule) && imported.sleepSchedule.length === 7) sleepSchedule = cloneValue(imported.sleepSchedule);
+        if (Array.isArray(imported.necessarySchedule)) necessarySchedule = normalizeNecessarySchedule(imported.necessarySchedule);
+        planTargets = imported.planTargets && typeof imported.planTargets === "object" && !Array.isArray(imported.planTargets) ? cloneValue(imported.planTargets) : {};
+        summaryOrder = Array.isArray(imported.summaryOrder) ? [...imported.summaryOrder] : [];
         applyBoardProfile();
-        saveBoardProfile();
-      }
-      if (!Array.isArray(imported) && Array.isArray(imported.sleepSchedule) && imported.sleepSchedule.length === 7) {
-        sleepSchedule = imported.sleepSchedule;
-        saveSleepSchedule();
-      }
-      if (!Array.isArray(imported) && Array.isArray(imported.necessarySchedule)) {
-        necessarySchedule = normalizeNecessarySchedule(imported.necessarySchedule);
-        saveNecessarySchedule();
-      }
-      if (!Array.isArray(imported) && imported.planTargets && typeof imported.planTargets === "object") {
-        planTargets = imported.planTargets;
-        savePlanTargets();
       }
       tasks.forEach(normalizeTaskKind);
       normalizeInboxPlanning();
       tasks.forEach(normalizeTaskProgress);
       migrateLegacyGroupKeys();
-      savePlanTargets();
-      saveSummaryOrder();
-      save();
+      if (!saveAllState()) throw new Error("save-failed");
       render();
-    } catch {
+    } catch (error) {
+      if (previousState) {
+        tasks = previousState.tasks;
+        actualRecords = previousState.actualRecords;
+        boardProfile = previousState.boardProfile;
+        sleepSchedule = previousState.sleepSchedule;
+        necessarySchedule = previousState.necessarySchedule;
+        planTargets = previousState.planTargets;
+        summaryOrder = previousState.summaryOrder;
+        applyBoardProfile();
+        saveAllState();
+        render();
+        undoStack.pop();
+      }
       alert("导入失败：请选择这个工具导出的 JSON 文件。");
     }
   };
