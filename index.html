@@ -156,6 +156,13 @@
             <h2 id="boardTitle">本周计划</h2>
           </div>
           <div class="board-actions">
+            <time
+              class="autosave-status"
+              id="autoSaveStatus"
+              role="status"
+              aria-live="polite"
+              title="每 30 秒自动保存"
+            >自动保存 · 30秒</time>
             <div class="layout-controls" aria-label="看板缩放">
               <button class="layout-icon-button" id="zoomOutBtn" type="button" title="缩小看板" aria-label="缩小看板">−</button>
               <input id="zoomRange" type="range" min="70" max="130" step="5" value="100" aria-label="看板缩放比例" />

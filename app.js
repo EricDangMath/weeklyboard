@@ -17,6 +17,8 @@ const profileKey = "interactive-week-board-profile-v1";
 const weeksKey = "interactive-week-board-weeks-v1";
 const activeWeekKey = "interactive-week-board-active-week-v1";
 const layoutSettingsKey = "interactive-week-board-layout-v1";
+const autoSaveTimestampKey = "interactive-week-board-autosave-at-v1";
+const autoSaveIntervalMs = 30 * 1000;
 const defaultLayoutSettings = Object.freeze({
   zoom: 100,
   homeTab: true,
@@ -47,6 +49,8 @@ let activeSummaryGroupDrag = null;
 let actualDraftGroupKey = "";
 let scheduleLayer = "plan";
 let layoutSettings = { ...defaultLayoutSettings };
+let autoSaveTimer = null;
+let realtimeSaveTimer = null;
 
 const demoText = `周一 6:30-7:00 BREAKFAST
 周一 8-9 SPANISH
@@ -501,6 +505,68 @@ function saveActualRecords() {
 
 function saveBoardProfile() {
   localStorage.setItem(scopedKey(profileKey), JSON.stringify(boardProfile));
+}
+
+function formatSavedTime(savedAt) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(savedAt);
+}
+
+function updateAutoSaveStatus(savedAt, failed = false) {
+  const status = $("#autoSaveStatus");
+  if (!status) return;
+  status.classList.toggle("save-failed", failed);
+  status.textContent = failed ? "保存失败" : `已自动保存 ${formatSavedTime(savedAt)}`;
+  if (failed) status.removeAttribute("datetime");
+  else status.dateTime = savedAt.toISOString();
+}
+
+function saveAllState({ showStatus = true } = {}) {
+  if (!currentWeekId) return false;
+  try {
+    save();
+    saveSummaryOrder();
+    saveSleepSchedule();
+    savePlanTargets();
+    saveNecessarySchedule();
+    saveActualRecords();
+    saveBoardProfile();
+    saveLayoutSettings();
+    saveWeeks();
+    localStorage.setItem(activeWeekKey, currentWeekId);
+
+    const savedAt = new Date();
+    localStorage.setItem(scopedKey(autoSaveTimestampKey), savedAt.toISOString());
+    if (showStatus) updateAutoSaveStatus(savedAt);
+    return true;
+  } catch (error) {
+    if (showStatus) updateAutoSaveStatus(new Date(), true);
+    console.error("自动保存失败", error);
+    return false;
+  }
+}
+
+function scheduleRealtimeSave() {
+  if (realtimeSaveTimer !== null) window.clearTimeout(realtimeSaveTimer);
+  realtimeSaveTimer = window.setTimeout(() => {
+    realtimeSaveTimer = null;
+    saveAllState();
+  }, 120);
+}
+
+function startAutoSave() {
+  if (autoSaveTimer !== null) window.clearInterval(autoSaveTimer);
+  saveAllState();
+  autoSaveTimer = window.setInterval(saveAllState, autoSaveIntervalMs);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") saveAllState();
+  });
+  window.addEventListener("beforeunload", () => saveAllState({ showStatus: false }));
 }
 
 function cloneValue(value) {
@@ -2715,12 +2781,20 @@ function nextAvailableWeekId(sourceWeekId) {
 }
 
 function showHome() {
+  if (!saveAllState()) {
+    alert("当前周看板保存失败，已留在本页。请先导出数据备份后再重试。");
+    return;
+  }
   $("#homeScreen").classList.remove("hidden");
   document.querySelector(".app-shell").classList.add("hidden");
   renderHome();
 }
 
 function showBoard(weekId) {
+  if (currentWeekId && currentWeekId !== weekId && !saveAllState()) {
+    alert("当前周看板保存失败，暂时不能切换周看板。");
+    return;
+  }
   currentWeekId = weekId;
   localStorage.setItem(activeWeekKey, currentWeekId);
   load();
@@ -2745,12 +2819,17 @@ function renderHome() {
     const weekTasks = readWeekTasks(week.id);
     const scheduled = weekTasks.filter((task) => task.day >= 0 && task.start !== null && task.end !== null).length;
     const inbox = weekTasks.length - scheduled;
+    const rawSavedAt = localStorage.getItem(`${autoSaveTimestampKey}-${week.id}`);
+    const savedAt = rawSavedAt ? new Date(rawSavedAt) : null;
+    const hasStoredData = localStorage.getItem(`${storageKey}-${week.id}`) !== null;
+    const savedLabel = savedAt && !Number.isNaN(savedAt.getTime()) ? `已保存 ${formatSavedTime(savedAt)}` : hasStoredData ? "已保存在本机" : "空白周看板";
     const card = document.createElement("article");
     card.className = "week-card";
     card.innerHTML = `
       <span class="week-card-range">${escapeHtml(week.range)}</span>
       <strong>${escapeHtml(week.title)}</strong>
       <span class="week-card-meta">${scheduled} 个已安排 · ${Math.max(0, inbox)} 个在收件箱</span>
+      <span class="week-card-save">${savedLabel}</span>
       <div class="week-card-actions">
         <button class="secondary-button open-week-btn" type="button"><span class="button-icon">↗</span>打开</button>
         <button class="secondary-button copy-week-btn" type="button"><span class="button-icon">⧉</span>复制</button>
@@ -2838,6 +2917,7 @@ function render() {
   document.querySelectorAll('input[type="time"]').forEach((input) => {
     input.step = snapMinutes * 60;
   });
+  scheduleRealtimeSave();
 }
 
 function renderNecessarySettings() {
@@ -3475,4 +3555,5 @@ load();
 loadLayoutSettings();
 bindEvents();
 applyLayoutSettings();
+startAutoSave();
 showHome();

@@ -494,6 +494,12 @@ select {
   font-weight: 800;
 }
 
+.week-card-save {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .board-area {
   min-width: 0;
   padding: 22px;
@@ -523,6 +529,34 @@ select {
   margin-left: auto;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+.autosave-status {
+  display: inline-flex;
+  align-items: center;
+  min-width: 128px;
+  min-height: 48px;
+  color: #53616a;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.autosave-status::before {
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  content: "";
+}
+
+.autosave-status.save-failed {
+  color: #b42318;
+}
+
+.autosave-status.save-failed::before {
+  background: #b42318;
 }
 
 .layout-controls {
