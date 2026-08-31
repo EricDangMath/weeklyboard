@@ -46,6 +46,7 @@ let summaryDrag = null;
 let undoStack = [];
 let activeTaskDrag = null;
 let activeSummaryGroupDrag = null;
+let scheduleCopyDrag = null;
 let actualDraftGroupKey = "";
 let scheduleLayer = "plan";
 let layoutSettings = { ...defaultLayoutSettings };
@@ -1419,6 +1420,107 @@ function quickCompleteNecessaryItem(item, day, start, end) {
   render();
 }
 
+function beginScheduleCopyDrag(event, task, card) {
+  if (event.button !== 0 || scheduleLayer !== "plan") return;
+  event.preventDefault();
+  event.stopPropagation();
+  document.querySelectorAll(".calendar-task.show-details").forEach((item) => item.classList.remove("show-details"));
+
+  const rect = card.getBoundingClientRect();
+  const preview = document.createElement("div");
+  preview.className = `task-card calendar-task schedule-copy-preview ${taskKindClass(task.kind)}`;
+  preview.setAttribute("aria-hidden", "true");
+  preview.innerHTML = `<strong>${escapeHtml(task.title)}</strong>`;
+
+  scheduleCopyDrag = {
+    taskId: task.id,
+    card,
+    preview,
+    duration: Math.max(snapMinutes, task.end - task.start),
+    grabOffsetY: event.clientY - rect.top,
+    target: null,
+  };
+  card.classList.add("copy-source");
+  document.body.classList.add("schedule-copy-active");
+  updateScheduleCopyDrag(event);
+  document.addEventListener("mousemove", updateScheduleCopyDrag);
+  document.addEventListener("mouseup", finishScheduleCopyDrag);
+  document.addEventListener("keydown", handleScheduleCopyKeydown);
+}
+
+function updateScheduleCopyDrag(event) {
+  if (!scheduleCopyDrag) return;
+  event.preventDefault();
+  const column = document.elementFromPoint(event.clientX, event.clientY)?.closest(".day-column");
+  document.querySelectorAll(".day-column.copy-target").forEach((item) => item.classList.remove("copy-target"));
+
+  if (!column || !$("#scheduleGrid")?.contains(column)) {
+    scheduleCopyDrag.preview.remove();
+    scheduleCopyDrag.target = null;
+    return;
+  }
+
+  const duration = scheduleCopyDrag.duration;
+  const rawStart = snapCalendarMinutes(event.clientY - scheduleCopyDrag.grabOffsetY, column);
+  const latestStart = Math.max(calendarStart, calendarEnd - duration);
+  const start = Math.max(calendarStart, Math.min(latestStart, rawStart));
+  const end = start + duration;
+  const day = Number(column.dataset.day);
+  const source = tasks.find((task) => task.id === scheduleCopyDrag.taskId);
+  const sameSlot = source && source.day === day && source.start === start && source.end === end;
+
+  if (scheduleCopyDrag.preview.parentElement !== column) column.appendChild(scheduleCopyDrag.preview);
+  positionScheduleBlock(scheduleCopyDrag.preview, start, end, 0, 1);
+  scheduleCopyDrag.preview.style.left = "2px";
+  scheduleCopyDrag.preview.style.width = "calc(100% - 4px)";
+  scheduleCopyDrag.preview.classList.toggle("copy-same-slot", Boolean(sameSlot));
+  column.classList.add("copy-target");
+  scheduleCopyDrag.target = { day, start, end, sameSlot };
+}
+
+function finishScheduleCopyDrag(event) {
+  if (!scheduleCopyDrag) return;
+  updateScheduleCopyDrag(event);
+  const source = tasks.find((task) => task.id === scheduleCopyDrag.taskId);
+  const target = scheduleCopyDrag.target;
+  cancelScheduleCopyDrag();
+  if (!source || !target || target.sameSlot) return;
+
+  const copiedTask = {
+    ...source,
+    id: uid(),
+    day: target.day,
+    start: target.start,
+    end: target.end,
+    done: false,
+    completedUnits: [],
+  };
+  delete copiedTask.isPlanBuffer;
+  delete copiedTask.plannedUnits;
+  captureUndo();
+  tasks.push(copiedTask);
+  save();
+  render();
+}
+
+function cancelScheduleCopyDrag() {
+  if (!scheduleCopyDrag) return;
+  scheduleCopyDrag.preview.remove();
+  scheduleCopyDrag.card.classList.remove("copy-source");
+  scheduleCopyDrag = null;
+  document.body.classList.remove("schedule-copy-active");
+  document.querySelectorAll(".day-column.copy-target").forEach((item) => item.classList.remove("copy-target"));
+  document.removeEventListener("mousemove", updateScheduleCopyDrag);
+  document.removeEventListener("mouseup", finishScheduleCopyDrag);
+  document.removeEventListener("keydown", handleScheduleCopyKeydown);
+}
+
+function handleScheduleCopyKeydown(event) {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  cancelScheduleCopyDrag();
+}
+
 function createTaskCard(task, mode = "stack") {
   const card = document.createElement("div");
   normalizeTaskKind(task);
@@ -1435,14 +1537,19 @@ function createTaskCard(task, mode = "stack") {
   card.dataset.id = task.id;
   const needLabel = mode === "calendar" ? "" : `<span class="task-needed">还需 ${inboxUnitCount(task)} 个番茄钟</span>`;
   card.innerHTML = `
-    ${canCheck ? `<button type="button" aria-label="完成"></button>` : ""}
+    ${canCheck ? `<button class="task-complete-control" type="button" aria-label="完成"></button>` : ""}
     <div>
       <strong>${escapeHtml(task.title)}</strong>
       ${needLabel}
       <span class="task-time">${task.day >= 0 ? `${days[task.day]} ` : ""}${task.start !== null ? `${fromMinutes(task.start)}-${fromMinutes(task.end)}` : "待安排"}</span>
     </div>
+    ${mode === "calendar" ? `<button class="schedule-copy-handle" type="button" title="拖动复制日程" aria-label="拖动复制${escapeHtml(task.title)}"></button>` : ""}
   `;
   card.addEventListener("dragstart", (event) => {
+    if (scheduleCopyDrag) {
+      event.preventDefault();
+      return;
+    }
     activeTaskDrag = {
       id: task.id,
       origin: task.day < 0 || task.start === null || task.end === null ? "inbox" : "schedule",
@@ -1454,7 +1561,7 @@ function createTaskCard(task, mode = "stack") {
     activeTaskDrag = null;
     document.querySelector(".control-panel")?.classList.remove("delete-drag-over");
   });
-  card.querySelector("button")?.addEventListener("click", (event) => {
+  card.querySelector(".task-complete-control")?.addEventListener("click", (event) => {
     event.stopPropagation();
     if (mode === "calendar" && scheduleLayer === "actual") {
       quickCompletePlannedTask(task);
@@ -1464,6 +1571,11 @@ function createTaskCard(task, mode = "stack") {
     setTaskDone(task, !isTaskEffectivelyDone(task));
     save();
     render();
+  });
+  card.querySelector(".schedule-copy-handle")?.addEventListener("mousedown", (event) => beginScheduleCopyDrag(event, task, card));
+  card.querySelector(".schedule-copy-handle")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
   });
   if (mode === "calendar") {
     card.addEventListener("click", (event) => {

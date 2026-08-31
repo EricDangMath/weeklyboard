@@ -1307,6 +1307,10 @@ select {
   background: #fff8b8;
 }
 
+.day-column.copy-target {
+  background: #f2fff5;
+}
+
 .sleep-block {
   position: absolute;
   left: 0;
@@ -1427,6 +1431,69 @@ select {
 
 .calendar-task.show-details .task-time {
   display: block;
+}
+
+.schedule-copy-handle {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  z-index: 12;
+  display: block;
+  width: 10px !important;
+  height: 10px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 2px solid #111 !important;
+  border-radius: 0 !important;
+  background: var(--green) !important;
+  box-shadow: none !important;
+  cursor: crosshair;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 80ms ease;
+}
+
+.calendar-task:hover > .schedule-copy-handle,
+.calendar-task:focus-within > .schedule-copy-handle,
+.calendar-task.copy-source > .schedule-copy-handle {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.calendar-task.copy-source {
+  z-index: 8;
+  outline: 3px solid var(--green);
+  outline-offset: -3px;
+}
+
+.schedule-copy-preview {
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  overflow: hidden;
+  border: 2px dashed #111;
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.schedule-copy-preview.copy-same-slot {
+  opacity: 0.28;
+}
+
+.schedule-copy-active,
+.schedule-copy-active .day-column {
+  cursor: crosshair;
+  user-select: none;
+}
+
+.schedule-grid.show-actual .schedule-copy-handle,
+.pdf-capture .schedule-copy-handle,
+.pdf-capture .schedule-copy-preview {
+  display: none !important;
 }
 
 .task-card button {
@@ -2269,6 +2336,8 @@ dialog::backdrop {
   .board-toolbar,
   .review-view,
   .schedule-layer-bar,
+  .schedule-copy-handle,
+  .schedule-copy-preview,
   dialog {
     display: none !important;
   }
