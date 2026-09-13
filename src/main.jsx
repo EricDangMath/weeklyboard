@@ -38,6 +38,14 @@ const weekKey = (date) => `${date.getFullYear()}-W${pad(weekNumber(date))}`;
 const uid = (prefix = 'wb') => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 const catById = (id) => CATS.find((cat) => cat.id === id) || CATS[CATS.length - 1];
 const download = (content, filename, type) => { const url = URL.createObjectURL(new Blob([content], { type })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = filename; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 300); };
+const tokenClaims = (value) => {
+  try {
+    const encoded = String(value || '').split('.')[1];
+    if (!encoded) return null;
+    const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')));
+  } catch { return null; }
+};
 
 function StarIcon() { return <svg className="doodle-star" viewBox="0 0 28 28" aria-hidden="true"><path d="M14 2l3.5 8.5 8.5.5-6.5 5.5 2.5 8.5-8-5.5-8 5.5L8.5 16 2 11l8.5-.5z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>; }
 
@@ -92,7 +100,7 @@ function App() {
       setInbox(parsed.inbox); setNightNotes(parsed.night); setDeadlines(parsed.deadline); setFills(parsed.fill);
     } catch { /* scratch API optional during migration */ }
   }, [call, currentWeekKey]);
-  useEffect(() => { let active = true; if (token) { setBooting(false); refresh().catch(() => { localStorage.removeItem('wb-token'); if (active) setToken(''); }); return () => { active = false; }; } fetch(`${API}/auth/debug`).then(async (response) => { if (!response.ok) throw new Error('debug disabled'); return response.json(); }).then((session) => { if (!active || !session.token) return; localStorage.setItem('wb-token', session.token); setToken(session.token); setDebugMode(Boolean(session.debugMode)); setEmail(session.user?.email || ''); }).catch(() => active && setBooting(false)); return () => { active = false; }; }, [token, refresh]);
+  useEffect(() => { let active = true; if (token) { const claims = tokenClaims(token); const isDebug = claims?.email === 'debug@weeklyboard.local'; setDebugMode(isDebug); if (claims?.email) setEmail(claims.email); setBooting(false); refresh().catch(() => { localStorage.removeItem('wb-token'); if (active) { setToken(''); setDebugMode(false); setEmail(''); } }); return () => { active = false; }; } fetch(`${API}/auth/debug`).then(async (response) => { if (!response.ok) throw new Error('debug disabled'); return response.json(); }).then((session) => { if (!active || !session.token) return; localStorage.setItem('wb-token', session.token); setToken(session.token); setDebugMode(Boolean(session.debugMode)); setEmail(session.user?.email || ''); }).catch(() => active && setBooting(false)); return () => { active = false; }; }, [token, refresh]);
   useEffect(() => { if (!project || !token) return; call(`/projects/${project.id}/tasks`).then(setTasks).catch(() => setTasks([])); }, [call, project, token]);
   useEffect(() => { if (token) loadScratch(); }, [token, loadScratch]);
   const fixedRows = useMemo(() => availability.filter((row) => row.kind === 'fixed'), [availability]);
