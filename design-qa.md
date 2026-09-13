@@ -49,3 +49,21 @@
 - Final Chrome cold start: a new tab at `http://127.0.0.1:4173/` loaded the SQL-backed Debug workspace, showed the task pool, backup entry and 7-day timeline, and reported an empty error/warn console. Screenshot: `chrome-final-qa.png`.
 
 final result: passed
+
+### Pass 4 — 网格层级与全 UI 收尾（2026-09-13）
+
+- 原问题：时间轴 10 分钟网格的浏览器默认按钮底色、边框和等权线条让网格抢过了事件内容，整体像硬栅栏；移动端还需要先滚过整列侧栏才能进入时间轴。
+- 修复：`.cell10` 清除默认 appearance/background/border；时间轴改为 10 分钟极淡线、30 分钟弱线、整点主参考线的暖纸色三层渐变；日期列、今天列、周日 tint 和事件卡重新分配对比度，使内容浮在背景上。
+- 响应式：移动端 `↓ 查看本周时间轴` 已移动到侧栏之前，并以 `#weekTimeline` 锚点跳转；390×844 Chrome 验证首屏入口可把时间轴滚到视口内。
+- 交互语义：714 个 10 分钟格设为 `tabIndex=-1`，Tab 顺序由 764 降至 58；任务完成/删除、新建项目、图层和备份、月历翻页补齐 aria 标签与展开状态；事件 resize 支持方向键并保留 SQL 写入。
+- 资源：替换损坏的 Caveat 字体为有效 TTF，修复字体解码警告；补齐 `/assets/icon.png` favicon，消除 404。
+- Chrome 检查视口：1366×768、1440×900、1920×1080、390×844；附加检查日历、事件弹窗、图层 popover、备份 popover。最终截图与指标保存在 `.ui-audit/after-final/`，SQL 交互回归截图为 `.ui-audit/chrome-ui-audit-final.png`。
+- SQL 回归：在 Chrome 中将“梳理本周目标”从 09:00–09:50 改为 09:00–10:00，冷刷新仍保持；再改回 09:00–09:50 并刷新，演示数据恢复。Debug Mode 刷新后保持，业务数据仍通过 SQL/API。
+
+### Final verification
+
+- `npm test`：6/6 通过。
+- `npm run build`：通过。
+- `node --check server/index.js server/calendar.js server/confirmation.js`：通过。
+- `git diff --check`：通过。
+- Chrome console：无 error/warning；仅 Vite/React DevTools info。
