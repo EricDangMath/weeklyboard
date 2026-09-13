@@ -103,6 +103,17 @@ function App() {
   useEffect(() => { let active = true; if (token) { const claims = tokenClaims(token); const isDebug = claims?.email === 'debug@weeklyboard.local'; setDebugMode(isDebug); if (claims?.email) setEmail(claims.email); setBooting(false); refresh().catch(() => { localStorage.removeItem('wb-token'); if (active) { setToken(''); setDebugMode(false); setEmail(''); } }); return () => { active = false; }; } fetch(`${API}/auth/debug`).then(async (response) => { if (!response.ok) throw new Error('debug disabled'); return response.json(); }).then((session) => { if (!active || !session.token) return; localStorage.setItem('wb-token', session.token); setToken(session.token); setDebugMode(Boolean(session.debugMode)); setEmail(session.user?.email || ''); }).catch(() => active && setBooting(false)); return () => { active = false; }; }, [token, refresh]);
   useEffect(() => { if (!project || !token) return; call(`/projects/${project.id}/tasks`).then(setTasks).catch(() => setTasks([])); }, [call, project, token]);
   useEffect(() => { if (token) loadScratch(); }, [token, loadScratch]);
+  useEffect(() => {
+    const closeOverlays = (event) => {
+      if (event.key !== 'Escape') return;
+      if (eventModal) return setEventModal(null);
+      if (calendarOpen) return setCalendarOpen(false);
+      if (layerOpen) return setLayerOpen(false);
+      if (backupOpen) return setBackupOpen(false);
+    };
+    window.addEventListener('keydown', closeOverlays);
+    return () => window.removeEventListener('keydown', closeOverlays);
+  }, [backupOpen, calendarOpen, eventModal, layerOpen]);
   const fixedRows = useMemo(() => availability.filter((row) => row.kind === 'fixed'), [availability]);
   const normalizedEvents = useMemo(() => events.filter((event) => !event.week_key || event.week_key === currentWeekKey).map((event) => ({ ...event, layer: event.layer || 'actual', cat: event.category || event.cat || 'other', source: event.source || 'calendar' })), [events, currentWeekKey]);
   const visibleEvents = useMemo(() => {
