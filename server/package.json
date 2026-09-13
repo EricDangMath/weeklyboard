@@ -1,0 +1,16 @@
+{
+  "name": "weeklyboard-server",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "latest",
+    "cors": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "jsonwebtoken": "latest",
+    "bcryptjs": "latest"
+  }
+}
