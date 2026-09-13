@@ -37,6 +37,7 @@
 - DeepSeek preview and deterministic scheduler create a visible `预估` layer draft; confirmation writes events to SQL and switches back to `实际`.
 - ICS import and export controls are wired to `/api/calendar/import` and `/api/calendar.ics`.
 - Event edit, drag, and resize persist through `PATCH /api/calendar/events/:id`; a Chrome resize action was exercised on `梳理本周目标` and the success toast confirmed the write.
+- Pointer resize regression: a fresh Chrome tab dragged `梳理本周目标` from `09:00–09:50` to `09:00–10:30`; the board updated immediately, the SQL row changed, and a cold reload retained `09:00–10:30` during the verification run. The demo row was then restored to `09:00–09:50` before final delivery.
 - Backup export opens the ZIP-style popover; restore is wired through a transactional JSON file flow with checksum validation.
 - Week navigation and layer selectors update visible board state.
 
@@ -45,5 +46,6 @@
 - `npm run build` passed.
 - `npm test` passed: 6/6 server tests (including cross-week plan confirmation, ICS week/date round-trip, and backup checksum rejection).
 - Browser smoke: implementation loaded at `http://127.0.0.1:4173/` in Chrome, exposed the full board accessibility tree, showed the ZIP-style paper composition, and reported no console errors or warnings.
+- Final Chrome cold start: a new tab at `http://127.0.0.1:4173/` loaded the SQL-backed Debug workspace, showed the task pool, backup entry and 7-day timeline, and reported an empty error/warn console. Screenshot: `chrome-final-qa.png`.
 
 final result: passed
