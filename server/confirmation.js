@@ -24,6 +24,7 @@ export function registerConfirmation(app, db, auth) {
     }
     const normalized = [];
     for (const block of blocks) {
+      if (block?.task_id != null && (!Number.isInteger(block.task_id) || !db.prepare('SELECT id FROM tasks WHERE id=? AND project_id=?').get(block.task_id, projectId))) return { status: 400, error: 'invalid task_id' };
       if (!block || typeof block.title !== 'string' || !block.title.trim() ||
           block.title.length > 200 || !DAYS.includes(block.day) ||
           !Number.isInteger(block.start_minute) || !Number.isInteger(block.end_minute) ||
@@ -33,6 +34,7 @@ export function registerConfirmation(app, db, auth) {
       }
       normalized.push({
         title: block.title.trim(),
+        ...(block.task_id != null ? { task_id: block.task_id } : {}),
         day: block.day,
         start_minute: block.start_minute,
         end_minute: block.end_minute,
@@ -50,6 +52,7 @@ export function registerConfirmation(app, db, auth) {
     const occupied = db.prepare('SELECT * FROM calendar_events WHERE user_id=?').all(userId);
     for (const block of normalized) {
       if (occupied.some(e => {
+        if (e.all_day) return false;
         const sameWeek = e.week_key === null || weekKey === null || e.week_key === weekKey;
         return sameWeek && e.day === block.day && e.start_minute < block.end_minute && e.end_minute > block.start_minute;
       })) {
@@ -60,8 +63,8 @@ export function registerConfirmation(app, db, auth) {
     const run = db.prepare('INSERT INTO plan_runs(user_id,project_id,summary,created_at) VALUES(?,?,?,?)')
       .run(userId, projectId, summary, new Date().toISOString());
     const insert = db.prepare(`INSERT INTO calendar_events(
-      user_id,title,day,start_minute,end_minute,locked,category,description,layer,week_key,repeat_rule,source
-    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`);
+      user_id,title,day,start_minute,end_minute,locked,category,description,layer,week_key,repeat_rule,source,task_id
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`);
     for (const block of normalized) insert.run(
       userId,
       block.title,
@@ -75,6 +78,7 @@ export function registerConfirmation(app, db, auth) {
       weekKey,
       null,
       'plan',
+      block.task_id ?? null,
     );
     const result = { plan_run_id: Number(run.lastInsertRowid), created: normalized.length };
     db.prepare('INSERT INTO plan_receipts(user_id,request_key,payload,result) VALUES(?,?,?,?)')

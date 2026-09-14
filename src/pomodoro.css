@@ -1,0 +1,68 @@
+.pomo-switch { display:inline-flex; align-items:center; gap:7px; position:relative; flex-shrink:0; cursor:pointer; font-size:13px; white-space:nowrap; letter-spacing:0; }
+.pomo-switch input { position:absolute; width:32px; height:22px; opacity:0; margin:0; cursor:pointer; }
+.pomo-switch-track { width:32px; height:20px; border:1px solid var(--line-deep); border-radius:12px; background:var(--line); padding:2px; transition:background .16s; }
+.pomo-switch-track::before { content:""; display:block; width:14px; height:14px; border-radius:50%; background:var(--card); transition:transform .16s; }
+.pomo-switch input:checked + .pomo-switch-track { background:var(--blue); border-color:var(--blue); }
+.pomo-switch input:checked + .pomo-switch-track::before { transform:translateX(12px); }
+.pomo-switch input:focus-visible + .pomo-switch-track { outline:3px solid var(--focus); outline-offset:3px; }
+.pomo-switch:has(input:disabled) { opacity:.55; cursor:wait; }
+.pomo-panel { display:flex; flex-direction:column; flex-shrink:0; max-height:43vh; min-height:0; border-bottom:1px solid var(--line-deep); background:var(--card); letter-spacing:0; }
+.pomo-heading { display:flex; justify-content:space-between; gap:10px; align-items:center; padding:12px 18px 6px; flex-shrink:0; }
+.pomo-heading h2 { margin:0; font-size:15px; font-weight:600; }
+.pomo-heading em { font-family:"Caveat",cursive; font-size:18px; font-weight:500; color:var(--ink-soft); margin-left:6px; }
+.pomo-unit { font-size:12px; color:var(--ink-soft); white-space:nowrap; }
+.pomo-overview { display:flex; align-items:center; gap:20px; flex-wrap:wrap; padding:0 18px 10px; flex-shrink:0; color:var(--ink-soft); font-size:12px; }
+.pomo-overview strong { font-size:18px; color:var(--ink); font-variant-numeric:tabular-nums; margin-left:5px; }
+.pomo-overall-progress { display:flex; align-items:center; gap:10px; margin-left:auto; width:210px; }
+.pomo-overall-progress strong { font-size:13px; min-width:40px; margin:0; }
+.pomo-progress { display:block; height:7px; border-radius:3px; background:var(--line); overflow:hidden; min-width:0; flex:1; }
+.pomo-progress i { display:block; height:100%; transition:width .2s; }
+.pomo-table-scroll { overflow:auto; min-height:0; overscroll-behavior:contain; }
+.pomo-table { width:100%; min-width:860px; border-collapse:separate; border-spacing:0; table-layout:fixed; font-size:12px; }
+.pomo-title-col { width:190px; }
+.pomo-number-col { width:62px; }
+.pomo-table th,.pomo-table td { border-top:1px solid var(--line); border-right:1px solid var(--line); padding:7px 5px; text-align:center; vertical-align:middle; }
+.pomo-table th:last-child,.pomo-table td:last-child { border-right:0; }
+.pomo-table thead th { position:sticky; top:0; z-index:2; background:var(--blue-fill); color:var(--ink); font-weight:600; height:32px; }
+.pomo-table tbody th { text-align:left; padding:7px 12px; font-weight:400; background:var(--card); }
+.pomo-table tbody tr:hover th,.pomo-table tbody tr:hover td { background-color:rgba(61,118,149,.035); }
+.pomo-row-title { display:flex; align-items:center; gap:6px; min-width:0; }
+.pomo-row-title i { width:6px; height:6px; flex-shrink:0; border-radius:50%; }
+.pomo-row-title strong { overflow-wrap:anywhere; font-size:13px; line-height:1.4; }
+.pomo-row-progress { display:flex; align-items:center; gap:7px; margin-top:4px; color:var(--ink-soft); font-size:11px; font-variant-numeric:tabular-nums; }
+.pomo-row-progress .pomo-progress { height:4px; }
+.pomo-plan-input { width:48px; height:28px; border:1px solid var(--line-deep); border-radius:4px; background:transparent; color:var(--ink); text-align:center; font:inherit; font-variant-numeric:tabular-nums; }
+.pomo-table td.pomo-complete { color:#34694e; background:#e3eee6; }
+.pomo-checks { display:flex; align-items:center; justify-content:center; gap:4px; flex-wrap:wrap; }
+.pomo-check { display:block; position:relative; width:20px; height:20px; padding:0; flex:0 0 20px; border:1.5px solid var(--ink-soft); border-radius:3px; background:var(--card); cursor:pointer; }
+.pomo-check::before { content:""; position:absolute; inset:3px; background:linear-gradient(to right,#5A8A8E var(--pomo-fill),transparent var(--pomo-fill)); border-radius:1px; }
+.pomo-check.checked { border-color:#5A8A8E; }
+.pomo-check.partial { border-color:var(--yellow); }
+.pomo-check:hover { outline:2px solid var(--line-deep); outline-offset:2px; }
+.pomo-check:disabled { cursor:wait; opacity:.55; }
+.pomo-empty,.pomo-error { padding:8px 18px 12px; margin:0; font-size:13px; }
+.pomo-error { color:#9e382c; }
+.pomo-breakdown { border-top:1px dashed var(--line-deep); margin-top:12px; padding-top:4px; }
+.pomo-breakdown h3 { margin:9px 0 7px; font-size:12px; font-weight:600; }
+.pomo-breakdown-row { display:grid; grid-template-columns:64px minmax(20px,1fr) 50px; align-items:center; gap:8px; font-size:12px; margin:7px 0; }
+.pomo-breakdown-row > span:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+.pomo-task-meta { display:block; margin-top:4px; font-size:11px; color:var(--blue); }
+.topbar:has(.pomo-switch) { flex-wrap:wrap; height:auto; min-height:56px; }
+.app:has(.pomo-switch) { display:flex; flex-direction:column; height:100dvh; min-height:0; }
+.app:has(.pomo-switch) > .topbar { flex-shrink:0; }
+.app:has(.pomo-switch) > .board { flex:1; height:auto; min-height:0; }
+@media(max-width:1100px) {
+  .pomo-panel { max-height:390px; }
+  .app:has(.pomo-switch) { height:auto; min-height:100dvh; }
+}
+@media(max-width:760px) {
+  .pomo-panel { max-height:430px; }
+  .pomo-heading { flex-wrap:wrap; padding:12px 14px 8px; }
+  .pomo-heading em { display:none; }
+  .pomo-overview { gap:10px 18px; padding:0 14px 10px; }
+  .pomo-overall-progress { width:100%; margin:0; }
+  .pomo-check { width:26px; height:26px; flex-basis:26px; }
+  .pomo-plan-input { height:34px; }
+  .pomo-table tbody th { position:sticky; left:0; z-index:1; }
+}
+@media print { .app:has(.pomo-switch) { height:auto; } .pomo-panel { max-height:none; break-inside:avoid; } .pomo-table-scroll { overflow:visible; } .pomo-table { min-width:0; } .pomo-error { display:none; } }

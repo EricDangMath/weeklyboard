@@ -11,8 +11,10 @@ import jwt from 'jsonwebtoken';
 import { registerAvailability } from './availability.js';
 import { deterministicSchedule } from './scheduler.js';
 import { registerCalendar } from './calendar.js';
+import { registerSubscriptions } from './subscriptions.js';
 import { registerDebugAuth } from './debug.js';
 import { registerConfirmation } from './confirmation.js';
+import { registerPomodoro } from './pomodoro.js';
 
 const serverDir = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(serverDir, '.env') });
@@ -26,7 +28,7 @@ const secret = process.env.JWT_SECRET || 'dev-secret-change-me';
 const DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
 app.use(cors());
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '3mb' }));
 db.pragma('foreign_keys = ON');
 
 db.exec(`
@@ -106,6 +108,7 @@ for (const [column, definition] of [
   ['source', "TEXT DEFAULT 'calendar'"],
 ]) ensureColumn('calendar_events', column, definition);
 ensureColumn('workspace_scratch', 'entity_key', "TEXT DEFAULT ''");
+ensureColumn('calendar_events', 'task_id', 'INTEGER');
 
 function parsePayload(value) {
   try { return JSON.parse(value || '{}'); } catch { return {}; }
@@ -206,6 +209,10 @@ app.delete('/api/projects/:id', auth, (req, res) => {
   const project = db.prepare('SELECT id FROM projects WHERE id=? AND user_id=?').get(req.params.id, req.user.id);
   if (!project) return res.status(404).json({ error: 'project not found' });
   db.transaction(() => {
+    for (const task of db.prepare('SELECT id FROM tasks WHERE project_id=?').all(project.id)) {
+      db.prepare('UPDATE calendar_events SET task_id=NULL WHERE task_id=? AND user_id=?').run(task.id, req.user.id);
+      db.prepare("DELETE FROM workspace_scratch WHERE user_id=? AND kind='pomodoro-plan' AND entity_key=?").run(req.user.id, `task:${task.id}`);
+    }
     db.prepare('DELETE FROM tasks WHERE project_id=?').run(project.id);
     db.prepare('DELETE FROM projects WHERE id=?').run(project.id);
   })();
@@ -248,7 +255,11 @@ app.patch('/api/tasks/:id', auth, (req, res) => {
 app.delete('/api/tasks/:id', auth, (req, res) => {
   const task = db.prepare('SELECT t.id FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.id=? AND p.user_id=?').get(req.params.id, req.user.id);
   if (!task) return res.status(404).json({ error: 'task not found' });
-  db.prepare('DELETE FROM tasks WHERE id=?').run(task.id);
+  db.transaction(() => {
+    db.prepare('UPDATE calendar_events SET task_id=NULL WHERE task_id=? AND user_id=?').run(task.id, req.user.id);
+    db.prepare("DELETE FROM workspace_scratch WHERE user_id=? AND kind='pomodoro-plan' AND entity_key=?").run(req.user.id, `task:${task.id}`);
+    db.prepare('DELETE FROM tasks WHERE id=?').run(task.id);
+  })();
   res.status(204).end();
 });
 
@@ -393,14 +404,16 @@ app.post('/api/plan/preview', auth, async (req, res) => {
 });
 
 registerConfirmation(app, db, auth);
+registerSubscriptions(app, db, auth);
 registerCalendar(app, db, auth);
+registerPomodoro(app, db, auth);
 app.get('/api/calendar', auth, (req, res) => {
   res.json(db.prepare('SELECT * FROM calendar_events WHERE user_id=? ORDER BY day,start_minute').all(req.user.id));
 });
 
 app.get('/api/review', auth, (req, res) => {
   const tasks = db.prepare('SELECT t.status,t.estimate_minutes FROM tasks t JOIN projects p ON p.id=t.project_id WHERE p.user_id=?').all(req.user.id);
-  const events = db.prepare('SELECT day,start_minute,end_minute,title FROM calendar_events WHERE user_id=?').all(req.user.id);
+  const events = db.prepare('SELECT day,start_minute,end_minute,title FROM calendar_events WHERE user_id=? AND all_day=0').all(req.user.id);
   const planned = events.reduce((total, event) => total + event.end_minute - event.start_minute, 0);
   const done = tasks.filter((task) => task.status === 'done').length;
   const dailyLoad = Object.fromEntries(DAYS.map((day) => [day, events.filter((event) => event.day === day).reduce((total, event) => total + event.end_minute - event.start_minute, 0)]));
@@ -446,6 +459,7 @@ app.post('/api/backup/restore', auth, (req, res) => {
     db.prepare('DELETE FROM tasks WHERE project_id IN (SELECT id FROM projects WHERE user_id=?)').run(req.user.id);
     db.prepare('DELETE FROM projects WHERE user_id=?').run(req.user.id);
     db.prepare('DELETE FROM calendar_events WHERE user_id=?').run(req.user.id);
+    db.prepare('DELETE FROM calendar_subscriptions WHERE user_id=?').run(req.user.id);
     db.prepare('DELETE FROM availability WHERE user_id=?').run(req.user.id);
     db.prepare('DELETE FROM workspace_scratch WHERE user_id=?').run(req.user.id);
     db.prepare('DELETE FROM plan_runs WHERE user_id=?').run(req.user.id);
@@ -453,8 +467,9 @@ app.post('/api/backup/restore', auth, (req, res) => {
     for (const project of tables.projects) insertProject.run(project.id, req.user.id, text(project.title, 120), text(project.description, 2000), project.deadline || null, Number(project.priority) || 3, project.created_at || nowIso(), project.updated_at || nowIso());
     const insertTask = db.prepare('INSERT INTO tasks(id,project_id,title,estimate_minutes,due_date,priority,status) VALUES(?,?,?,?,?,?,?)');
     for (const task of tables.tasks) insertTask.run(task.id, task.project_id, text(task.title, 160), Number(task.estimate_minutes) || 30, task.due_date || null, Number(task.priority) || 3, ['todo', 'doing', 'done'].includes(task.status) ? task.status : 'todo');
-    const insertEvent = db.prepare('INSERT INTO calendar_events(id,user_id,title,day,start_minute,end_minute,locked,category,description,layer,week_key,repeat_rule,source) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)');
-    for (const event of tables.calendar_events) insertEvent.run(event.id, req.user.id, text(event.title, 200), event.day, Number(event.start_minute), Number(event.end_minute), event.locked ? 1 : 0, text(event.category || 'other', 32), text(event.description, 2000), text(event.layer || 'actual', 32), event.week_key || null, event.repeat_rule || null, text(event.source || 'calendar', 32));
+    const insertEvent = db.prepare('INSERT INTO calendar_events(id,user_id,title,day,start_minute,end_minute,locked,category,description,layer,week_key,repeat_rule,source,task_id,all_day,external_key,external_date,deadline_kind,deadline_kind_override,due_minute,event_url,course,deadline_completed) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    const restoredTaskIds = new Set(tables.tasks.map((task) => task.id));
+    for (const event of tables.calendar_events) insertEvent.run(event.id, req.user.id, text(event.title, event.deadline_kind ? 500 : 200), event.day, Number(event.start_minute), Number(event.end_minute), !event.subscription_id && event.locked ? 1 : 0, text(event.category || 'other', 32), text(event.description, event.deadline_kind ? 20000 : 2000), text(event.layer || 'actual', 32), event.week_key || null, event.repeat_rule || null, text(event.subscription_id ? 'calendar' : event.source || 'calendar', 32), restoredTaskIds.has(event.task_id) ? event.task_id : null, event.all_day ? 1 : 0, event.source === 'ics-import' ? event.external_key || null : null, event.external_date || null, ['hw', 'exam'].includes(event.deadline_kind) ? event.deadline_kind : null, ['hw', 'exam'].includes(event.deadline_kind_override) ? event.deadline_kind_override : null, Number.isInteger(event.due_minute) && event.due_minute >= 0 && event.due_minute < 1440 ? event.due_minute : null, text(event.event_url, 4096), text(event.course, 300), event.deadline_completed ? 1 : 0);
     const insertAvailability = db.prepare('INSERT INTO availability(user_id,day,start_minute,end_minute,kind,title) VALUES(?,?,?,?,?,?)');
     for (const row of tables.availability || []) insertAvailability.run(req.user.id, row.day, Number(row.start_minute), Number(row.end_minute), row.kind, text(row.title, 120));
     const insertScratch = db.prepare('INSERT INTO workspace_scratch(id,user_id,kind,week_key,entity_key,payload_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)');

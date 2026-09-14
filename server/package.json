@@ -6,11 +6,13 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "bcryptjs": "latest",
     "better-sqlite3": "latest",
     "cors": "latest",
     "dotenv": "latest",
     "express": "latest",
+    "ipaddr.js": "2.5.0",
     "jsonwebtoken": "latest",
-    "bcryptjs": "latest"
+    "node-ical": "0.27.2"
   }
 }

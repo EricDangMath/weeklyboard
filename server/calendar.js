@@ -1,11 +1,8 @@
+import { parseCalendar } from './calendar-feed.js';
+
 const DAY_NAMES = ['周一','周二','周三','周四','周五','周六','周日'];
 const DAYS = new Set(DAY_NAMES);
 const WEEK_KEY = /^\d{4}-W(?:0[1-9]|[1-4]\d|5[0-3])$/;
-const unescape = value => String(value ?? '')
-  .replace(/\\n/g, '\n')
-  .replace(/\\,/g, ',')
-  .replace(/\\;/g, ';')
-  .replace(/\\\\/g, '\\');
 const escape = value => String(value ?? '')
   .replace(/\\/g, '\\\\')
   .replace(/,/g, '\\,')
@@ -44,21 +41,8 @@ function weekKeyForDate(date) {
   return `${utc.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-function parseIcsDate(value) {
-  const match = String(value || '').match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/);
-  if (!match) return null;
-  const [, year, month, day, hour, minute, second] = match.map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function parseIcsMinute(value) {
-  const match = String(value || '').match(/^\d{4}\d{2}\d{2}T(\d{2})(\d{2})\d{2}Z?$/);
-  if (!match) return null;
-  return Number(match[1]) * 60 + Number(match[2]);
-}
-
 export function registerCalendar(app, db, auth) {
+  const validTask = (userId, id) => id == null || (Number.isInteger(id) && Boolean(db.prepare('SELECT t.id FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.id=? AND p.user_id=?').get(id, userId)));
   app.get('/api/calendar.ics', auth, (req, res) => {
     const rows = db.prepare('SELECT * FROM calendar_events WHERE user_id=? ORDER BY day,start_minute').all(req.user.id);
     const today = new Date();
@@ -75,6 +59,11 @@ export function registerCalendar(app, db, auth) {
         value.setUTCMinutes(Number(minute));
         return value.toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
       };
+      if (row.all_day) {
+        lines.push('BEGIN:VEVENT', `UID:wb-${row.id}@weeklyboard`, `SUMMARY:${escape(row.title)}`,
+          `DTSTART;VALUE=DATE:${stamp(0).slice(0, 8)}`, `DTEND;VALUE=DATE:${stamp(1440).slice(0, 8)}`, 'END:VEVENT');
+        continue;
+      }
       lines.push(
         'BEGIN:VEVENT',
         `UID:wb-${row.id}@weeklyboard`,
@@ -91,46 +80,31 @@ export function registerCalendar(app, db, auth) {
     lines.push('END:VCALENDAR');
     res.type('text/calendar').send(lines.join('\r\n') + '\r\n');
   });
-  app.post('/api/calendar/import', auth, (req, res) => {
-    const raw = typeof req.body?.ics === 'string' ? req.body.ics : '';
-    if (raw.length > 100000) return res.status(413).json({ error: 'ics too large' });
-    const requestedWeekKey = req.body?.week_key ?? req.body?.weekKey ?? null;
-    if (!isWeekKey(requestedWeekKey)) return res.status(400).json({ error: 'invalid week_key' });
-    const blocks = [];
-    for (const chunk of raw.split('BEGIN:VEVENT').slice(1)) {
-      const body = chunk.split('END:VEVENT')[0]; const get = key => (body.match(new RegExp(`^${key}:(.+)$`, 'm')) || [])[1];
-      let day = get('X-WB-DAY'), start = Number(get('X-WB-START')), end = Number(get('X-WB-END')), title = unescape(get('SUMMARY') || '');
-      const dt = get('DTSTART'), de = get('DTEND');
-      const eventWeekRaw = get('X-WB-WEEK');
-      let eventWeek = eventWeekRaw || null;
-      if (eventWeekRaw && !isWeekKey(eventWeekRaw)) continue;
-      if ((!day || !Number.isInteger(start) || !Number.isInteger(end)) && parseIcsDate(dt) && parseIcsDate(de)) {
-        const startDate = parseIcsDate(dt);
-        day = DAY_NAMES[(startDate.getUTCDay() + 6) % 7];
-        start = parseIcsMinute(dt);
-        end = parseIcsMinute(de);
-        if (!eventWeek) eventWeek = weekKeyForDate(startDate);
-      }
-      if (!eventWeek) eventWeek = requestedWeekKey;
-      if (DAYS.has(day) && Number.isInteger(start) && Number.isInteger(end) && start >= 0 && end <= 1440 && start < end && title.trim()) {
-        blocks.push({ day, start, end, title: title.trim().slice(0,200), week_key: eventWeek });
-      }
-    }
-    if (!blocks.length) return res.status(400).json({ error: 'no valid events' });
-    const insert = db.prepare(`INSERT INTO calendar_events(
-      user_id,title,day,start_minute,end_minute,locked,category,description,layer,week_key,repeat_rule,source
-    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`);
-    db.transaction(() => blocks.forEach(b => insert.run(
-      req.user.id, b.title, b.day, b.start, b.end, 0, 'other', '', 'actual', b.week_key, null, 'ics-import'
-    )))();
-    res.status(201).json({ imported: blocks.length });
+  app.post('/api/calendar/import', auth, async (req, res) => {
+    try {
+      const requestedWeekKey = req.body?.week_key ?? null;
+      if (!isWeekKey(requestedWeekKey)) return res.status(400).json({ error: 'invalid week_key' });
+      const parsed = await parseCalendar(req.body?.ics, {
+        timezone: req.body?.timezone || 'UTC',
+        now: (mondayForWeekKey(requestedWeekKey) || new Date()).toISOString(),
+      });
+      if (!parsed.blocks.length) return res.status(400).json({ error: '日历中没有可导入的日程' });
+      const insert = db.prepare(`INSERT INTO calendar_events(
+        user_id,title,day,start_minute,end_minute,category,description,layer,week_key,source,external_key,external_date,all_day
+      ) VALUES(?,?,?,?,?,'class',?,'once',?,'ics-import',?,?,?)
+      ON CONFLICT DO UPDATE SET title=excluded.title,day=excluded.day,start_minute=excluded.start_minute,end_minute=excluded.end_minute,
+      description=excluded.description,week_key=excluded.week_key,external_date=excluded.external_date,all_day=excluded.all_day`);
+      db.transaction(() => { for (const b of parsed.blocks) insert.run(req.user.id,b.title,b.day,b.start_minute,b.end_minute,b.description,b.week_key,b.external_key,b.date || null,b.all_day); })();
+      res.status(201).json({ imported: parsed.blocks.length });
+    } catch (error) { res.status(400).json({ error: error.calendarError ? error.message : '日历导入失败' }); }
   });
   app.post('/api/calendar/events', auth, (req, res) => {
     const body = req.body || {};
+    if (!validTask(req.user.id, body.task_id)) return res.status(400).json({ error: 'invalid task_id' });
     if (!DAYS.has(body.day) || typeof body.title !== 'string' || !body.title.trim() || !Number.isInteger(body.start_minute) || !Number.isInteger(body.end_minute) || body.start_minute < 0 || body.end_minute > 1440 || body.start_minute >= body.end_minute || !isWeekKey(body.week_key ?? null)) return res.status(400).json({ error: 'invalid calendar event' });
     const result = db.prepare(`INSERT INTO calendar_events(
-      user_id,title,day,start_minute,end_minute,locked,category,description,layer,week_key,repeat_rule,source
-    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      user_id,title,day,start_minute,end_minute,locked,category,description,layer,week_key,repeat_rule,source,task_id
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       req.user.id,
       body.title.trim().slice(0, 200),
       body.day,
@@ -143,16 +117,20 @@ export function registerCalendar(app, db, auth) {
       normalizeWeekKey(body.week_key),
       body.repeat_rule || (body.repeat ? 'weekly' : null),
       String(body.source || 'calendar').slice(0, 32),
+      body.task_id ?? null,
     );
     res.status(201).json(db.prepare('SELECT * FROM calendar_events WHERE id=?').get(result.lastInsertRowid));
   });
   app.patch('/api/calendar/events/:id', auth, (req, res) => {
     const existing = db.prepare('SELECT * FROM calendar_events WHERE id=? AND user_id=?').get(req.params.id, req.user.id);
     if (!existing) return res.status(404).json({ error: 'calendar event not found' });
+    if (existing.subscription_id) return res.status(409).json({ error: '订阅日程由来源日历更新；请在来源日历修改，或先取消订阅并保留日程' });
     const body = { ...existing, ...(req.body || {}) };
+    if (!validTask(req.user.id, body.task_id)) return res.status(400).json({ error: 'invalid task_id' });
+    const repeatRule = Object.hasOwn(req.body || {}, 'repeat') ? (req.body.repeat ? 'weekly' : null) : body.repeat_rule || null;
     if (!DAYS.has(body.day) || typeof body.title !== 'string' || !body.title.trim() || !Number.isInteger(Number(body.start_minute)) || !Number.isInteger(Number(body.end_minute)) || Number(body.start_minute) < 0 || Number(body.end_minute) > 1440 || Number(body.start_minute) >= Number(body.end_minute) || !isWeekKey(body.week_key ?? null)) return res.status(400).json({ error: 'invalid calendar event' });
     db.prepare(`UPDATE calendar_events SET
-      title=?,day=?,start_minute=?,end_minute=?,locked=?,category=?,description=?,layer=?,week_key=?,repeat_rule=?,source=?
+      title=?,day=?,start_minute=?,end_minute=?,locked=?,category=?,description=?,layer=?,week_key=?,repeat_rule=?,source=?,task_id=?
       WHERE id=? AND user_id=?
     `).run(
       body.title.trim().slice(0, 200),
@@ -164,14 +142,17 @@ export function registerCalendar(app, db, auth) {
       String(body.description || '').slice(0, 2000),
       String(body.layer || existing.layer || 'actual').slice(0, 32),
       normalizeWeekKey(body.week_key === undefined ? existing.week_key : body.week_key),
-      body.repeat_rule || (body.repeat ? 'weekly' : existing.repeat_rule || null),
+      repeatRule,
       String(body.source || existing.source || 'calendar').slice(0, 32),
+      body.task_id ?? null,
       existing.id,
       req.user.id,
     );
     res.json(db.prepare('SELECT * FROM calendar_events WHERE id=?').get(existing.id));
   });
   app.delete('/api/calendar/events/:id', auth, (req, res) => {
+    const existing = db.prepare('SELECT subscription_id FROM calendar_events WHERE id=? AND user_id=?').get(req.params.id, req.user.id);
+    if (existing?.subscription_id) return res.status(409).json({ error: '请在订阅管理中取消订阅，或在来源日历删除此日程' });
     const result = db.prepare('DELETE FROM calendar_events WHERE id=? AND user_id=?').run(req.params.id, req.user.id);
     if (!result.changes) return res.status(404).json({ error: 'calendar event not found' });
     res.status(204).end();
