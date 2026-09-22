@@ -275,6 +275,35 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size:11px; color:var(--ink-soft); background:none; border:none;
   cursor:pointer; text-decoration:underline dashed;
 }
+
+/* Planning onboarding */
+.planner-status { margin:0 0 6px; font-size:12px; font-weight:700; color:var(--ink); }
+.planner-explain { margin:0 0 10px; padding:7px 9px; font-size:10.5px; line-height:1.55; color:var(--ink-soft); background:var(--blue-fill); border-left:3px solid var(--blue); }
+.quick-actions { display:flex; gap:6px; margin:8px 0; }
+.quick-actions .paper-btn { flex:1; justify-content:center; font-size:11px; padding:5px 4px; }
+.modal-lead { margin:-5px 0 14px; color:var(--ink-soft); font-size:12px; line-height:1.5; }
+.template-modal, .guide-modal { width:min(92vw, 540px); }
+.template-modal h3 em { font-family:"Caveat",cursive; font-size:13px; color:var(--ink-soft); margin-left:6px; }
+.template-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+.template-card { text-align:left; padding:12px 10px; min-height:128px; background:var(--paper); border:1.5px dashed var(--line-deep); border-radius:14px 8px 16px 10px; color:var(--ink); cursor:pointer; display:flex; flex-direction:column; gap:7px; font-family:inherit; }
+.template-card:hover { border-color:var(--blue); background:var(--blue-fill); transform:translateY(-2px); }
+.template-card:disabled { opacity:.55; cursor:wait; }
+.template-card strong { font-size:15px; }
+.template-card span { font-size:11px; line-height:1.45; color:var(--ink-soft); flex:1; }
+.template-card small { font-size:10px; color:var(--blue); }
+.guide-kicker { font-size:11px; color:var(--blue); letter-spacing:.08em; margin-bottom:6px; }
+.guide-modal h3 { margin-bottom:8px; }
+.guide-body { min-height:54px; margin:0; color:var(--ink-soft); font-size:13px; line-height:1.65; }
+.guide-action { margin:16px 0; padding:13px; text-align:center; font-size:19px; color:var(--blue); border:1.5px dashed var(--blue); border-radius:12px; background:var(--blue-fill); }
+.guide-progress { display:flex; justify-content:center; gap:7px; margin:10px 0 2px; }
+.guide-progress button { width:28px; height:5px; padding:0; border:0; border-radius:5px; background:var(--line); cursor:pointer; }
+.guide-progress button.active { background:var(--blue); }
+.guide-progress button.done { background:var(--teal, #5A8A8E); }
+@media (max-width:760px) {
+  .template-grid { grid-template-columns:1fr; }
+  .template-card { min-height:auto; }
+  .quick-actions { flex-direction:column; }
+}
 .reset-link:hover { color:var(--terra); }
 
 /* ---------- Timeline Pane ---------- */
