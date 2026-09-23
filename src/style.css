@@ -64,8 +64,9 @@ button, input, select, textarea { font:inherit; }
 button { color:inherit; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible,
 [tabindex]:focus-visible, a:focus-visible {
-  outline:3px solid rgba(36,95,128,.28);
-  outline-offset:2px;
+  outline:3px solid var(--focus);
+  outline-offset:3px;
+  box-shadow:0 0 0 2px var(--card);
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.01ms !important; }
@@ -149,8 +150,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .board {
   display:grid;
   grid-template-columns: var(--sidebar) 1fr;
-  height: calc(100vh - 56px);
-  overflow:hidden;
+  min-height: calc(100vh - 56px);
+  height:auto;
+  overflow:visible;
 }
 .mobile-board-jump { display:none; }
 
@@ -197,7 +199,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .add-row input:focus { border-color:var(--blue); background:var(--blue-fill); }
 .mini-btn {
-  width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+  width:36px; height:36px; display:flex; align-items:center; justify-content:center;
   background:var(--card); border:1.5px solid var(--ink); border-radius:50%;
   cursor:pointer; font-size:16px; padding-bottom:2px; color:var(--ink);
   transition:background .1s;
@@ -228,9 +230,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .task-note:focus { border-color:var(--yellow); background:var(--yellow-fill); color:var(--ink); }
 .task-note::placeholder { color:#B9AD97; }
+.task-note::placeholder,
+.add-row input::placeholder,
+.night-fields input::placeholder,
+.dl-sticker input::placeholder,
+textarea::placeholder { color:#7B7165; opacity:1; }
 .task-actions { display:flex; gap:2px; flex-shrink:0; margin-top:1px; }
 .task-actions button {
-  font-size:10px; padding:1px 5px; background:var(--card);
+  min-width:36px; min-height:32px; font-size:10px; padding:1px 5px; background:var(--card);
   border:1px solid var(--ink); border-radius:255px 15px/15px 255px;
   cursor:pointer; color:var(--ink); line-height:1.4;
 }
@@ -263,7 +270,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   position:absolute; right:4px; top:4px; display:flex; gap:2px;
 }
 .inbox-actions button {
-  font-size:10px; padding:1px 5px; background:var(--card);
+  min-width:36px; min-height:32px; font-size:10px; padding:1px 5px; background:var(--card);
   border:1px solid var(--ink); border-radius:255px 15px/15px 255px;
   cursor:pointer; color:var(--ink);
 }
@@ -296,7 +303,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .guide-body { min-height:54px; margin:0; color:var(--ink-soft); font-size:13px; line-height:1.65; }
 .guide-action { margin:16px 0; padding:13px; text-align:center; font-size:19px; color:var(--blue); border:1.5px dashed var(--blue); border-radius:12px; background:var(--blue-fill); }
 .guide-progress { display:flex; justify-content:center; gap:7px; margin:10px 0 2px; }
-.guide-progress button { width:28px; height:5px; padding:0; border:0; border-radius:5px; background:var(--line); cursor:pointer; }
+.guide-progress button { width:32px; min-height:24px; padding:0; border:0; border-radius:5px; background:var(--line); cursor:pointer; }
 .guide-progress button.active { background:var(--blue); }
 .guide-progress button.done { background:var(--teal, #5A8A8E); }
 @media (max-width:760px) {
@@ -309,7 +316,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* ---------- Timeline Pane ---------- */
 .timeline-pane {
   display:flex; flex-direction:column;
-  overflow:hidden;
+  min-width:0;
+  overflow:visible;
 }
 
 /* Legend */
@@ -343,7 +351,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 /* Timeline scroll */
-.timeline-scroll { flex:1; overflow:auto; padding-bottom:10px; background:rgba(255,253,247,.48); scroll-padding-top:var(--head-h); }
+.timeline-scroll { flex:1; min-height:620px; overflow:auto; padding-bottom:10px; background:rgba(255,253,247,.48); scroll-padding-top:var(--head-h); }
+.timeline-scroll:focus-visible { outline:3px solid var(--focus); outline-offset:-3px; }
 .timeline {
   display:flex; align-items:flex-start;
   min-width: calc(var(--gutter) + var(--day-min)*7 + 40px);
@@ -474,11 +483,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .event-time { font-size:10px; color:#655D54; font-variant-numeric:tabular-nums; }
 .event-desc { font-size:9px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .event-resize {
-  position:absolute; left:0; right:0; bottom:0; height:12px;
+  position:absolute; left:0; right:0; bottom:0; height:24px;
   cursor:ns-resize; pointer-events:auto; z-index:4;
 }
 .event-resize::after {
-  content:""; display:block; margin:7px auto 0; width:18px; height:2px;
+  content:""; display:block; margin:13px auto 0; width:18px; height:2px;
   border-radius:1px; background:var(--ink-soft); opacity:.28;
 }
 .event-resize:focus-visible::after { opacity:1; background:var(--focus); }
