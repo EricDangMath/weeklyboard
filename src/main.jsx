@@ -158,6 +158,15 @@ function App() {
     return () => window.removeEventListener('keydown', closeOverlays);
   }, [backupOpen, calendarOpen, eventModal, layerOpen, deadlineId, showTemplates, showGuide]);
   useEffect(() => {
+    const closePopoversOnOutsidePointer = (event) => {
+      const target = event.target;
+      if (backupOpen && !target.closest?.('.backup-wrap')) setBackupOpen(false);
+      if (layerOpen && !target.closest?.('.layer-wrap')) setLayerOpen(false);
+    };
+    document.addEventListener('pointerdown', closePopoversOnOutsidePointer);
+    return () => document.removeEventListener('pointerdown', closePopoversOnOutsidePointer);
+  }, [backupOpen, layerOpen]);
+  useEffect(() => {
     const updateGridTabStops = () => document.querySelectorAll('.grid-background').forEach((grid) => {
       const cells = [...grid.querySelectorAll('.cell10')];
       cells.forEach((cell, index) => { cell.tabIndex = index === 0 ? 0 : -1; });
