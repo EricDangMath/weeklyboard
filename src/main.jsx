@@ -163,7 +163,11 @@ function App() {
       const label = labels.get(control.getAttribute('placeholder')) || (control.tagName === 'SELECT' ? '选择选项' : '输入内容');
       control.setAttribute('aria-label', label);
     });
-  }, [token, projects.length, project?.id, calendarOpen]);
+    document.querySelectorAll('.event[tabindex="0"]').forEach((eventBlock) => {
+      if (!eventBlock.hasAttribute('role')) eventBlock.setAttribute('role', 'button');
+      if (!eventBlock.hasAttribute('aria-roledescription')) eventBlock.setAttribute('aria-roledescription', '日程');
+    });
+  }, [token, projects.length, project?.id, calendarOpen, planVersion]);
   useEffect(() => {
     const closeOverlays = (event) => {
       if (event.key !== 'Escape') return;
