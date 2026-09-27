@@ -17,7 +17,12 @@ test('four visible layer checkboxes are separate from the new-event target', asy
     assert.equal((html.match(/<option /g)||[]).length,2);
     assert.match(render({visibleLayers:[]}),/disabled=""/);
     assert.doesNotMatch(render({compact:true}),/<select/);
-    const { Timeline } = await vite.ssrLoadModule('/src/main.jsx');
+    const { Timeline, gridNavigationIndex } = await vite.ssrLoadModule('/src/main.jsx');
+    assert.equal(gridNavigationIndex(0, 'ArrowRight', 6), 1);
+    assert.equal(gridNavigationIndex(2, 'ArrowRight', 6), 2);
+    assert.equal(gridNavigationIndex(4, 'ArrowUp', 6), 1);
+    assert.equal(gridNavigationIndex(1, 'ArrowDown', 6), 4);
+    assert.equal(gridNavigationIndex(4, 'End', 6), 5);
     const events = [
       {id:'fixed',title:'Fixed',day:'周一',start_minute:540,end_minute:600,layer:'fixed',cat:'class'},
       {id:'actual',title:'Actual',day:'周一',start_minute:570,end_minute:630,layer:'actual',cat:'study'},

@@ -14,6 +14,19 @@ const DAY_START = 360;
 const DAY_END = 1380;
 const CELL_MIN = 10;
 const CELL_H = 12;
+const GRID_COLUMNS = 3;
+
+export function gridNavigationIndex(index, key, total, columns = GRID_COLUMNS) {
+  const row = Math.floor(index / columns);
+  const column = index % columns;
+  if (key === 'ArrowRight') return column + 1 < columns ? index + 1 : index;
+  if (key === 'ArrowLeft') return column > 0 ? index - 1 : index;
+  if (key === 'ArrowDown') return row + 1 < Math.ceil(total / columns) ? Math.min(total - 1, index + columns) : index;
+  if (key === 'ArrowUp') return row > 0 ? index - columns : index;
+  if (key === 'Home') return row * columns;
+  if (key === 'End') return Math.min(total - 1, row * columns + columns - 1);
+  return index;
+}
 
 const LAYERS = [
   { id: 'fixed', label: '每周固定', color: '#3D7695' },
@@ -143,6 +156,28 @@ function App() {
     window.addEventListener('keydown', closeOverlays);
     return () => window.removeEventListener('keydown', closeOverlays);
   }, [backupOpen, calendarOpen, eventModal, layerOpen, deadlineId, showTemplates, showGuide]);
+  useEffect(() => {
+    const updateGridTabStops = () => document.querySelectorAll('.grid-background').forEach((grid) => {
+      const cells = [...grid.querySelectorAll('.cell10')];
+      cells.forEach((cell, index) => { cell.tabIndex = index === 0 ? 0 : -1; });
+    });
+    const moveGridFocus = (event) => {
+      const cell = event.target.closest?.('.cell10');
+      if (!cell || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+      const grid = cell.closest('.grid-background');
+      if (!grid) return;
+      const cells = [...grid.querySelectorAll('.cell10')];
+      const nextIndex = gridNavigationIndex(cells.indexOf(cell), event.key, cells.length);
+      if (nextIndex === cells.indexOf(cell)) return;
+      event.preventDefault();
+      cells.forEach((item) => { item.tabIndex = -1; });
+      cells[nextIndex].tabIndex = 0;
+      cells[nextIndex].focus();
+    };
+    updateGridTabStops();
+    document.addEventListener('keydown', moveGridFocus);
+    return () => document.removeEventListener('keydown', moveGridFocus);
+  }, [currentWeekKey, planVersion, visibleLayers.length]);
   const fixedRows = useMemo(() => availability.filter((row) => row.kind === 'fixed'), [availability]);
   const normalizedEvents = useMemo(() => events.filter((event) => !event.week_key || event.week_key === currentWeekKey || (event.repeat_rule === 'weekly' && event.layer !== 'actual')).map((event) => ({ ...event, layer: event.layer || 'actual', cat: event.category || event.cat || 'other', source: event.source || 'calendar' })), [events, currentWeekKey]);
   const visibleEvents = useMemo(() => {
