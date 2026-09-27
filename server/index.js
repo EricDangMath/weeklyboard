@@ -319,7 +319,7 @@ function extractJson(raw) {
   return JSON.parse(start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned);
 }
 
-function validatePlan(plan) {
+function validatePlan(plan, sourceTasks = []) {
   if (!plan || typeof plan !== 'object' || !Array.isArray(plan.blocks)) throw new Error('planner returned invalid blocks');
   const blocks = plan.blocks.map((block) => {
     if (!block || typeof block.title !== 'string' || !DAYS.includes(block.day) ||
@@ -327,8 +327,11 @@ function validatePlan(plan) {
         block.start_minute < 0 || block.end_minute > 1440 || block.start_minute >= block.end_minute) {
       throw new Error('planner returned invalid time block');
     }
+    const taskById = sourceTasks.find((task) => Number.isInteger(Number(block.task_id)) && Number(task.task_id ?? task.id) === Number(block.task_id));
+    const taskByTitle = sourceTasks.find((task) => String(task.title || '').trim() === block.title.trim());
+    const sourceTask = taskById || taskByTitle;
     return {
-      task_id: block.task_id ?? null,
+      task_id: sourceTask ? Number(sourceTask.task_id ?? sourceTask.id) : null,
       title: text(block.title, 200),
       day: block.day,
       start_minute: block.start_minute,
@@ -359,14 +362,14 @@ async function deepseekPlan(input) {
           model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
           temperature: 0.2,
           messages: [
-            { role: 'system', content: '你是周计划排程器。只返回 JSON：{"summary":string,"blocks":[{"title":string,"day":string,"start_minute":number,"end_minute":number,"category":string}],"warnings":string[]}' },
+            { role: 'system', content: '你是周计划排程器。只返回 JSON：{"summary":string,"blocks":[{"task_id":number|null,"title":string,"day":string,"start_minute":number,"end_minute":number,"category":string}],"warnings":string[]}。如果输入任务带有 task_id，必须原样放回对应时间块；不要编造 task_id。' },
             { role: 'user', content: JSON.stringify(input) },
           ],
         }),
       });
       if (!response.ok) throw new Error(`DeepSeek ${response.status}`);
       const body = await response.json();
-      return validatePlan(extractJson(body.choices?.[0]?.message?.content || '{}'));
+      return validatePlan(extractJson(body.choices?.[0]?.message?.content || '{}'), input.tasks || []);
     } catch (error) {
       lastError = error;
       if (attempt === 0) await new Promise((resolveDelay) => setTimeout(resolveDelay, 250));
