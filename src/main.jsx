@@ -176,6 +176,34 @@ function App() {
     }
   }, [token, projects.length, project?.id, calendarOpen, planVersion]);
   useEffect(() => {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return undefined;
+    sidebar.id = 'weekSidebar';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'mobile-sidebar-toggle';
+    button.setAttribute('aria-controls', 'weekSidebar');
+    const media = window.matchMedia('(max-width: 760px)');
+    const sync = () => {
+      const collapsed = sidebar.classList.contains('is-collapsed');
+      button.setAttribute('aria-expanded', String(!collapsed));
+      button.textContent = collapsed ? '☰ 展开侧栏' : '× 收起侧栏';
+      if (!media.matches) sidebar.classList.remove('is-collapsed');
+    };
+    button.addEventListener('click', () => {
+      sidebar.classList.toggle('is-collapsed');
+      sync();
+      if (!sidebar.classList.contains('is-collapsed')) sidebar.querySelector('input, button, textarea, select')?.focus();
+    });
+    document.body.append(button);
+    media.addEventListener?.('change', sync);
+    sync();
+    return () => {
+      media.removeEventListener?.('change', sync);
+      button.remove();
+    };
+  }, [token]);
+  useEffect(() => {
     const closeOverlays = (event) => {
       if (event.key !== 'Escape') return;
       if (deadlineId) return setDeadlineId(null);
