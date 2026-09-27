@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './style.css';
 import { usePomodoro, PomodoroPanel, PomodoroSwitch, PomodoroBreakdown } from './Pomodoro.jsx';
@@ -123,6 +123,7 @@ function App() {
   const [showGuide, setShowGuide] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [guideStep, setGuideStep] = useState(0);
+  const overlayFocus = useRef(null);
   const [dataRevision, setDataRevision] = useState(0);
   const notify = useCallback((message) => { setToast(message); window.clearTimeout(window.__wbToast); window.__wbToast = window.setTimeout(() => setToast(''), 2600); }, []);
   const call = useCallback(async (path, options = {}) => { const response = await fetch(`${API}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers || {}) } }); const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.error || '请求失败'); if (options.method && options.method !== 'GET') setDataRevision((value) => value + 1); return body; }, [token]);
@@ -178,6 +179,40 @@ function App() {
     document.addEventListener('keydown', moveGridFocus);
     return () => document.removeEventListener('keydown', moveGridFocus);
   }, [currentWeekKey, planVersion, visibleLayers.length]);
+  const overlayOpen = Boolean(deadlineId || eventModal || calendarOpen || layerOpen || backupOpen || showTemplates || showGuide);
+  useEffect(() => {
+    if (overlayOpen && !overlayFocus.current) {
+      overlayFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    }
+    if (!overlayOpen && overlayFocus.current) {
+      const trigger = overlayFocus.current;
+      overlayFocus.current = null;
+      if (document.contains(trigger)) trigger.focus();
+    }
+  }, [overlayOpen]);
+  useEffect(() => {
+    const trapOverlayFocus = (event) => {
+      if (event.key !== 'Tab') return;
+      const dialog = document.querySelector('[role="dialog"]:not([hidden]), dialog[open]');
+      if (!dialog) return;
+      const focusable = [...dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!dialog.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', trapOverlayFocus);
+    return () => document.removeEventListener('keydown', trapOverlayFocus);
+  }, []);
   const fixedRows = useMemo(() => availability.filter((row) => row.kind === 'fixed'), [availability]);
   const normalizedEvents = useMemo(() => events.filter((event) => !event.week_key || event.week_key === currentWeekKey || (event.repeat_rule === 'weekly' && event.layer !== 'actual')).map((event) => ({ ...event, layer: event.layer || 'actual', cat: event.category || event.cat || 'other', source: event.source || 'calendar' })), [events, currentWeekKey]);
   const visibleEvents = useMemo(() => {
