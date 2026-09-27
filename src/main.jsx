@@ -144,6 +144,27 @@ function App() {
   useEffect(() => { if (token) loadScratch(); }, [token, loadScratch]);
   useEffect(() => { if (token && !booting && projects.length === 0) setShowTemplates(true); }, [token, booting, projects.length]);
   useEffect(() => {
+    // Some of the paper-style sidebar controls intentionally use placeholder text
+    // as their visual hint. Keep that hint, but give assistive technology a stable
+    // name that does not disappear once the field contains text.
+    const labels = new Map([
+      ['添加一个任务…', '添加任务'],
+      ['本周具体任务…', '任务备注'],
+      ['记点什么…', '添加收件箱便签'],
+      ['熬夜干了什么…', '熬夜记录内容'],
+      ['什么要交 / 要考？', '截止提醒内容'],
+      ['新项目名称…', '新项目名称'],
+      ['目标与背景（可选）', '项目目标与背景'],
+      ['想到什么就写下来…', '快速记录']
+    ]);
+    const controls = document.querySelectorAll('.sidebar input[placeholder], .sidebar textarea[placeholder], .sidebar select, .cal-view textarea[placeholder]');
+    controls.forEach((control) => {
+      if (control.closest('label') || control.hasAttribute('aria-label')) return;
+      const label = labels.get(control.getAttribute('placeholder')) || (control.tagName === 'SELECT' ? '选择选项' : '输入内容');
+      control.setAttribute('aria-label', label);
+    });
+  }, [token, projects.length, project?.id, calendarOpen]);
+  useEffect(() => {
     const closeOverlays = (event) => {
       if (event.key !== 'Escape') return;
       if (deadlineId) return setDeadlineId(null);
