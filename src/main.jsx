@@ -168,12 +168,27 @@ function App() {
       const grid = cell.closest('.grid-background');
       if (!grid) return;
       const cells = [...grid.querySelectorAll('.cell10')];
-      const nextIndex = gridNavigationIndex(cells.indexOf(cell), event.key, cells.length);
-      if (nextIndex === cells.indexOf(cell)) return;
+      const currentIndex = cells.indexOf(cell);
+      const nextIndex = gridNavigationIndex(currentIndex, event.key, cells.length);
+      let targetGrid = grid;
+      let targetIndex = nextIndex;
+      if (nextIndex === currentIndex && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+        const grids = [...document.querySelectorAll('.grid-background')];
+        const gridIndex = grids.indexOf(grid);
+        const adjacentGrid = grids[gridIndex + (event.key === 'ArrowRight' ? 1 : -1)];
+        if (adjacentGrid) {
+          targetGrid = adjacentGrid;
+          const adjacentCells = adjacentGrid.querySelectorAll('.cell10');
+          targetIndex = event.key === 'ArrowRight' ? 0 : adjacentCells.length - 1;
+        }
+      }
+      if (targetGrid === grid && targetIndex === currentIndex) return;
       event.preventDefault();
-      cells.forEach((item) => { item.tabIndex = -1; });
-      cells[nextIndex].tabIndex = 0;
-      cells[nextIndex].focus();
+      document.querySelectorAll('.grid-background .cell10').forEach((item) => { item.tabIndex = -1; });
+      const target = targetGrid.querySelectorAll('.cell10')[targetIndex];
+      if (!target) return;
+      target.tabIndex = 0;
+      target.focus();
     };
     updateGridTabStops();
     document.addEventListener('keydown', moveGridFocus);
