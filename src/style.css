@@ -474,6 +474,8 @@ textarea::placeholder { color:#7B7165; opacity:1; }
 .cell10:last-child { border:0; }
 .cell10:hover { background:rgba(61,118,149,.075); box-shadow:inset 0 0 0 1px rgba(61,118,149,.12); }
 .cell10.paint-active { background:rgba(61,118,149,.1); }
+.cell10:focus:not(:focus-visible) { outline:none; box-shadow:none; }
+.cell10:focus-visible { outline:3px solid var(--focus); outline-offset:-2px; z-index:1; }
 
 /* Event layer */
 .events-layer {
