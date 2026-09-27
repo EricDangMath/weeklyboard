@@ -167,6 +167,13 @@ function App() {
       if (!eventBlock.hasAttribute('role')) eventBlock.setAttribute('role', 'button');
       if (!eventBlock.hasAttribute('aria-roledescription')) eventBlock.setAttribute('aria-roledescription', '日程');
     });
+    const confirmButton = document.querySelector('.planner-panel .paper-btn.primary.small');
+    if (confirmButton) {
+      const ready = Boolean(window.__wbPlan?.blocks?.length);
+      confirmButton.toggleAttribute('disabled', !ready);
+      confirmButton.setAttribute('aria-disabled', String(!ready));
+      confirmButton.setAttribute('aria-label', ready ? '确认并写入周看板' : '请先生成排程草案');
+    }
   }, [token, projects.length, project?.id, calendarOpen, planVersion]);
   useEffect(() => {
     const closeOverlays = (event) => {
