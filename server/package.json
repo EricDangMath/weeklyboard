@@ -6,13 +6,16 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "@touch4it/ical-timezones": "1.9.0",
     "bcryptjs": "latest",
     "better-sqlite3": "latest",
     "cors": "latest",
     "dotenv": "latest",
     "express": "latest",
+    "ical-generator": "11.1.2",
     "ipaddr.js": "2.5.0",
     "jsonwebtoken": "latest",
-    "node-ical": "0.27.2"
+    "node-ical": "0.27.2",
+    "temporal-polyfill": "1.0.5"
   }
 }

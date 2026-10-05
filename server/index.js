@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 import { registerAvailability } from './availability.js';
 import { deterministicSchedule } from './scheduler.js';
 import { registerCalendar } from './calendar.js';
+import { registerCalendarPublish } from './calendar-publish.js';
 import { registerSubscriptions } from './subscriptions.js';
 import { registerDebugAuth } from './debug.js';
 import { registerConfirmation } from './confirmation.js';
@@ -459,6 +460,7 @@ app.post('/api/backup/restore', auth, (req, res) => {
   if (!tables || !Array.isArray(tables.projects) || !Array.isArray(tables.tasks) || !Array.isArray(tables.calendar_events)) return res.status(400).json({ error: 'invalid backup' });
   if (!verifyBackup(backup)) return res.status(400).json({ error: 'backup checksum mismatch' });
   const restore = db.transaction(() => {
+    db.prepare('UPDATE calendar_publications SET enabled=0 WHERE user_id=?').run(req.user.id);
     db.prepare('DELETE FROM tasks WHERE project_id IN (SELECT id FROM projects WHERE user_id=?)').run(req.user.id);
     db.prepare('DELETE FROM projects WHERE user_id=?').run(req.user.id);
     db.prepare('DELETE FROM calendar_events WHERE user_id=?').run(req.user.id);
@@ -493,6 +495,7 @@ app.post('/api/backup/restore', auth, (req, res) => {
 });
 
 registerAvailability(app, db, auth);
+registerCalendarPublish(app, db, auth, secret);
 registerDebugAuth(app, db, issueToken);
 
 app.use((error, req, res, next) => {
