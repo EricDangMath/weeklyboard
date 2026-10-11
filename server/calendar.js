@@ -1,4 +1,5 @@
 import { parseCalendar } from './calendar-feed.js';
+import { excludedWeeks, occursInWeek } from '../src/calendar-occurrences.mjs';
 
 const DAY_NAMES = ['周一','周二','周三','周四','周五','周六','周日'];
 const DAYS = new Set(DAY_NAMES);
@@ -50,6 +51,7 @@ export function registerCalendar(app, db, auth) {
     const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//WeeklyBoard//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
     for (const row of rows) {
       const eventWeek = isWeekKey(row.week_key) && row.week_key ? row.week_key : currentWeek;
+      if (!occursInWeek(row, eventWeek)) continue;
       const monday = mondayForWeekKey(eventWeek) || mondayForWeekKey(currentWeek);
       const dayOffset = DAY_NAMES.indexOf(row.day);
       const date = new Date(monday);
@@ -151,8 +153,21 @@ export function registerCalendar(app, db, auth) {
     res.json(db.prepare('SELECT * FROM calendar_events WHERE id=?').get(existing.id));
   });
   app.delete('/api/calendar/events/:id', auth, (req, res) => {
-    const existing = db.prepare('SELECT subscription_id FROM calendar_events WHERE id=? AND user_id=?').get(req.params.id, req.user.id);
+    const existing = db.prepare('SELECT * FROM calendar_events WHERE id=? AND user_id=?').get(req.params.id, req.user.id);
+    if (!existing) return res.status(404).json({ error: 'calendar event not found' });
     if (existing?.subscription_id) return res.status(409).json({ error: '请在订阅管理中取消订阅，或在来源日历删除此日程' });
+    const scope = req.query.scope || 'all';
+    if (!['week', 'all'].includes(scope)) return res.status(400).json({ error: 'invalid deletion scope' });
+    if (scope === 'week') {
+      const week = req.query.week_key;
+      if (!week || !isWeekKey(week)) return res.status(400).json({ error: 'invalid week_key' });
+      const excluded = excludedWeeks(existing);
+      if (!occursInWeek(existing, week) && !excluded.includes(week)) return res.status(404).json({ error: '该周没有这条日程' });
+      if (!existing.week_key || existing.repeat_rule === 'weekly') {
+        if (!excluded.includes(week)) db.prepare('UPDATE calendar_events SET excluded_weeks=? WHERE id=? AND user_id=?').run(JSON.stringify([...excluded, week].sort()), existing.id, req.user.id);
+        return res.json({ scope, week_key: week, event: db.prepare('SELECT * FROM calendar_events WHERE id=? AND user_id=?').get(existing.id, req.user.id) });
+      }
+    }
     const result = db.prepare('DELETE FROM calendar_events WHERE id=? AND user_id=?').run(req.params.id, req.user.id);
     if (!result.changes) return res.status(404).json({ error: 'calendar event not found' });
     res.status(204).end();

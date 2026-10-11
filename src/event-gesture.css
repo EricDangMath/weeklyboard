@@ -1,0 +1,12 @@
+.event { touch-action: none; }
+.event-title, .event-time, .event-layer-label, .event-desc { pointer-events: none; }
+.event .event-resize { left: 50%; right: auto; bottom: 0; width: 22px; height: 6px; max-height: 35%; transform: translateX(-50%); opacity: 0; }
+.event .event-resize::after { width: 18px; height: 2px; margin: 2px auto 0; }
+.event:hover .event-resize, .event:focus-within .event-resize { opacity: 1; }
+.event-moving { opacity: 0.35; }
+.event-gesturing, .event-gesturing * { cursor: grabbing !important; user-select: none !important; }
+.event-gesturing .event:hover { transform: none; }
+.event-drag-ghost { position: fixed; z-index: 10000; left: 0; top: 0; padding: 7px 9px; box-sizing: border-box; border: 1px solid #6f756f; border-left: 4px solid #3d7695; border-radius: 4px; box-shadow: 0 8px 18px rgb(37 44 41 / 20%); pointer-events: none; display: flex; flex-direction: column; gap: 3px; font-size: 12px; line-height: 1.3; will-change: transform; }
+.event-drag-ghost strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.event-drag-ghost span { font-size: 10px; }
+@media print { .event-drag-ghost, .event-resize { display: none !important; } }

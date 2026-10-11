@@ -16,6 +16,7 @@ import { registerSubscriptions } from './subscriptions.js';
 import { registerDebugAuth } from './debug.js';
 import { registerConfirmation } from './confirmation.js';
 import { registerPomodoro } from './pomodoro.js';
+import { excludedWeeks } from '../src/calendar-occurrences.mjs';
 
 const serverDir = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(serverDir, '.env') });
@@ -110,6 +111,7 @@ for (const [column, definition] of [
 ]) ensureColumn('calendar_events', column, definition);
 ensureColumn('workspace_scratch', 'entity_key', "TEXT DEFAULT ''");
 ensureColumn('calendar_events', 'task_id', 'INTEGER');
+ensureColumn('calendar_events', 'excluded_weeks', "TEXT NOT NULL DEFAULT '[]'");
 
 function parsePayload(value) {
   try { return JSON.parse(value || '{}'); } catch { return {}; }
@@ -475,6 +477,8 @@ app.post('/api/backup/restore', auth, (req, res) => {
     const insertEvent = db.prepare('INSERT INTO calendar_events(id,user_id,title,day,start_minute,end_minute,locked,category,description,layer,week_key,repeat_rule,source,task_id,all_day,external_key,external_date,deadline_kind,deadline_kind_override,due_minute,event_url,course,deadline_completed) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
     const restoredTaskIds = new Set(tables.tasks.map((task) => task.id));
     for (const event of tables.calendar_events) insertEvent.run(event.id, req.user.id, text(event.title, event.deadline_kind ? 500 : 200), event.day, Number(event.start_minute), Number(event.end_minute), !event.subscription_id && event.locked ? 1 : 0, text(event.category || 'other', 32), text(event.description, event.deadline_kind ? 20000 : 2000), text(event.layer || 'actual', 32), event.week_key || null, event.repeat_rule || null, text(event.subscription_id ? 'calendar' : event.source || 'calendar', 32), restoredTaskIds.has(event.task_id) ? event.task_id : null, event.all_day ? 1 : 0, event.source === 'ics-import' ? event.external_key || null : null, event.external_date || null, ['hw', 'exam'].includes(event.deadline_kind) ? event.deadline_kind : null, ['hw', 'exam'].includes(event.deadline_kind_override) ? event.deadline_kind_override : null, Number.isInteger(event.due_minute) && event.due_minute >= 0 && event.due_minute < 1440 ? event.due_minute : null, text(event.event_url, 4096), text(event.course, 300), event.deadline_completed ? 1 : 0);
+    const restoreExclusions = db.prepare('UPDATE calendar_events SET excluded_weeks=? WHERE id=? AND user_id=?');
+    for (const event of tables.calendar_events) restoreExclusions.run(JSON.stringify(excludedWeeks(event)), event.id, req.user.id);
     const insertAvailability = db.prepare('INSERT INTO availability(user_id,day,start_minute,end_minute,kind,title) VALUES(?,?,?,?,?,?)');
     for (const row of tables.availability || []) insertAvailability.run(req.user.id, row.day, Number(row.start_minute), Number(row.end_minute), row.kind, text(row.title, 120));
     const insertScratch = db.prepare('INSERT INTO workspace_scratch(id,user_id,kind,week_key,entity_key,payload_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)');

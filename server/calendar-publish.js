@@ -2,6 +2,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypt
 import ical from 'ical-generator';
 import { getVtimezoneComponent } from '@touch4it/ical-timezones';
 import { Temporal } from 'temporal-polyfill';
+import { excludedWeeks } from '../src/calendar-occurrences.mjs';
 
 const DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 const LAYERS = ['fixed', 'flex', 'once', 'actual'];
@@ -35,6 +36,8 @@ export function buildPublishedCalendar(profile, events, fixed = [], deadlines = 
     const allDay = row.deadline_kind ? row.due_minute == null : Boolean(row.all_day);
     const minute = row.deadline_kind ? row.due_minute : Number(row.start_minute);
     const endMinute = row.deadline_kind ? minute : Number(row.end_minute);
+    const exclusions = excludedWeeks(row);
+    if (!(row.repeat_rule === 'weekly' && row.layer !== 'actual') && exclusions.includes(row.week_key)) return;
     const modified = new Date(Math.max(Date.parse(row.modified || profile.updated_at), Date.parse(profile.updated_at)));
     const event = cal.createEvent({
       id: `${row.feed_uid}@weeklyboard`,
@@ -47,7 +50,13 @@ export function buildPublishedCalendar(profile, events, fixed = [], deadlines = 
       stamp: modified,
       lastModified: modified,
       sequence: Number(row.sequence || 0) + profile.revision,
-      repeating: row.repeat_rule === 'weekly' && row.layer !== 'actual' ? { freq: 'WEEKLY' } : null,
+      repeating: row.repeat_rule === 'weekly' && row.layer !== 'actual' ? {
+        freq: 'WEEKLY',
+        ...(exclusions.length ? { exclude: exclusions.map((week) => {
+          const day = dateFor({ ...row, external_date: null, week_key: week }, profile.anchor_date);
+          return allDay ? new Date(`${day}T00:00:00Z`) : zoned(day, minute, profile.timezone);
+        }) } : {}),
+      } : null,
     });
     if (row.deadline_kind && !row.deadline_completed) event.createAlarm({ type: 'display', trigger: 0, description: row.title });
   };

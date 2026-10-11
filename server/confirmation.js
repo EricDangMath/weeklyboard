@@ -1,3 +1,5 @@
+import { occursInWeek } from '../src/calendar-occurrences.mjs';
+
 const DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
 export function registerConfirmation(app, db, auth) {
@@ -53,7 +55,7 @@ export function registerConfirmation(app, db, auth) {
     for (const block of normalized) {
       if (occupied.some(e => {
         if (e.all_day) return false;
-        const sameWeek = e.week_key === null || weekKey === null || e.week_key === weekKey;
+        const sameWeek = weekKey === null || occursInWeek(e, weekKey);
         return sameWeek && e.day === block.day && e.start_minute < block.end_minute && e.end_minute > block.start_minute;
       })) {
         return { status: 409, error: 'calendar conflict; refresh and adjust the draft' };

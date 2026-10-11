@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { occursInWeek } from '../src/calendar-occurrences.mjs';
 
 export const POMODORO_MINUTES = 30;
 export const DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -66,7 +67,7 @@ export function summarizePomodoros(tasks, events, targets = {}) {
 
 export function registerPomodoro(app, db, auth) {
   const getTasks = (userId) => db.prepare('SELECT t.*,p.title AS project_title FROM tasks t JOIN projects p ON p.id=t.project_id WHERE p.user_id=? ORDER BY p.id,t.id').all(userId);
-  const getEvents = (userId, week) => db.prepare("SELECT * FROM calendar_events WHERE user_id=? AND (week_key=? OR week_key IS NULL OR (repeat_rule='weekly' AND layer<>'actual')) ORDER BY day,start_minute,id").all(userId, week);
+  const getEvents = (userId, week) => db.prepare("SELECT * FROM calendar_events WHERE user_id=? AND (week_key=? OR week_key IS NULL OR (repeat_rule='weekly' AND layer<>'actual')) ORDER BY day,start_minute,id").all(userId, week).filter((event) => occursInWeek(event, week));
   const setScratch = (userId, kind, week, key, payload) => {
     const now = new Date().toISOString();
     db.prepare(`INSERT INTO workspace_scratch(user_id,kind,week_key,entity_key,payload_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?)

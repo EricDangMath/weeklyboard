@@ -24,7 +24,7 @@ test('publish is opt-in and copy handles coexist with resize and use noninteract
     assert.doesNotMatch(preview, /<button/);
     assert.equal(render(EventCopyPreview, { preview: source, day: '周二' }), '');
     const { Timeline } = await vite.ssrLoadModule('/src/main.jsx');
-    const timeline = render(Timeline, { onCopy() {}, visibleLayers: ['once'], timeRange: { start: 480, end: 1080 }, weekStart: new Date(2026, 9, 5), events: [source], fills: [], currentWeekKey: '2026-W41', activeLayer: 'once', activeCat: 'class', nights: [], deadlines: [] });
+    const timeline = render(Timeline, { onCopy() {}, visibleLayers: ['once'], timeRange: { start: 480, end: 1080 }, weekStart: new Date(2026, 9, 5), events: [{ ...source, locked: 0 }], fills: [], currentWeekKey: '2026-W41', activeLayer: 'once', activeCat: 'class', nights: [], deadlines: [] });
     assert.match(timeline, /event-copy-handle/);
     assert.match(timeline, /event-resize/);
     assert.equal((timeline.match(/class="day-grid" data-day=/g) || []).length, 7);
