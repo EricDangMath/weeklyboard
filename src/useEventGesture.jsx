@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { copyTarget } from './event-copy.mjs';
+import { gridPixelsPerMinute } from './timeline-zoom.mjs';
 
 const formatTime = (minute) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
 
@@ -12,13 +13,14 @@ export default function useEventGesture() {
     if (down.button !== 0 || !onCommit) return;
     const handle = down.currentTarget;
     const article = handle.closest('.event');
-    const board = handle.closest('.timeline-scroll');
+    const board = handle.closest('.week-zoom-viewport') || handle.closest('.timeline-scroll');
     const origin = handle.closest('.day-grid');
     if (!article || !board || !origin) return;
     cleanup.current?.();
     down.preventDefault(); down.stopPropagation();
     handle.focus({ preventScroll: true });
-    const offset = (down.clientY - origin.getBoundingClientRect().top) / pixelsPerMinute - (Number(event.start_minute) - range.start);
+    const originRect = origin.getBoundingClientRect();
+    const offset = (down.clientY - originRect.top) / gridPixelsPerMinute(originRect, range, pixelsPerMinute) - (Number(event.start_minute) - range.start);
     const initial = { x: down.clientX, y: down.clientY };
     let point = initial, moved = false, target = null, frame, ghost = null, previewKey = '';
 
@@ -28,7 +30,7 @@ export default function useEventGesture() {
       for (const grid of board.querySelectorAll('.day-grid[data-day]')) {
         const rect = grid.getBoundingClientRect();
         if (point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom) {
-          return copyTarget(event, grid.dataset.day, range.start + (point.y - rect.top) / pixelsPerMinute - offset, range);
+          return copyTarget(event, grid.dataset.day, range.start + (point.y - rect.top) / gridPixelsPerMinute(rect, range, pixelsPerMinute) - offset, range);
         }
       }
       return null;

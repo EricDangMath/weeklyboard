@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import EventCopyHandle from './EventCopy.jsx';
 import useEventGesture from './useEventGesture.jsx';
+import { gridPixelsPerMinute } from './timeline-zoom.mjs';
 import './event-gesture.css';
 
 const formatTime = (minute) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
@@ -24,12 +25,14 @@ function ResizeHandle({ event, range, interval, pixelsPerMinute, onPreview, onEn
       if (down.button !== 0) return;
       down.preventDefault(); down.stopPropagation(); cleanup.current?.();
       const handle = down.currentTarget, initialEnd = Number(event.end_minute), initialY = down.clientY;
+      const grid = handle.closest('.day-grid');
+      const renderedPixelsPerMinute = gridPixelsPerMinute(grid.getBoundingClientRect(), range, pixelsPerMinute);
       let currentEnd = initialEnd, moved = false;
       const move = (e) => {
         if (e.pointerId !== down.pointerId) return;
         moved ||= Math.abs(e.clientY - initialY) >= 5;
         if (!moved) return;
-        currentEnd = clamp(initialEnd + Math.round((e.clientY - initialY) / pixelsPerMinute / interval) * interval);
+        currentEnd = clamp(initialEnd + Math.round((e.clientY - initialY) / renderedPixelsPerMinute / interval) * interval);
         onPreview?.(event.id, currentEnd);
       };
       const clear = () => {
