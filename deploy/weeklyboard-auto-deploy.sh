@@ -18,8 +18,10 @@ LOCK_FILE="$STATE_ROOT/lock"
 swap_started=false
 old_dist_moved=false
 old_server_moved=false
+old_src_moved=false
 new_dist_moved=false
 new_server_moved=false
+new_src_moved=false
 
 log() { printf '[%s] %s\n' "$(date -Is)" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -37,11 +39,17 @@ rollback() {
   if [[ "$new_server_moved" == true && -e "$APP_ROOT/server" ]]; then
     mv -- "$APP_ROOT/server" "$failed_root/server"
   fi
+  if [[ "$new_src_moved" == true && -e "$APP_ROOT/src" ]]; then
+    mv -- "$APP_ROOT/src" "$failed_root/src"
+  fi
   if [[ "$old_dist_moved" == true && -e "$PREVIOUS_ROOT/dist" ]]; then
     mv -- "$PREVIOUS_ROOT/dist" "$APP_ROOT/dist"
   fi
   if [[ "$old_server_moved" == true && -e "$PREVIOUS_ROOT/server" ]]; then
     mv -- "$PREVIOUS_ROOT/server" "$APP_ROOT/server"
+  fi
+  if [[ "$old_src_moved" == true && -e "$PREVIOUS_ROOT/src" ]]; then
+    mv -- "$PREVIOUS_ROOT/src" "$APP_ROOT/src"
   fi
   if [[ -d "$APP_ROOT/server/data" ]]; then
     chown -R www:www "$APP_ROOT/server/data"
@@ -147,7 +155,9 @@ chown www:www "$smoke_root"
 smoke_server="$smoke_root/server"
 install -d -m 0750 -o www -g www "$smoke_root/data" "$smoke_server"
 cp -a "$release_dir/server/." "$smoke_server/"
-chown -R www:www "$smoke_server"
+# server modules import shared code from ../src
+cp -a "$release_dir/src" "$smoke_root/src"
+chown -R www:www "$smoke_server" "$smoke_root/src"
 smoke_log="$smoke_root/service.log"
 if timeout 12s runuser -u www -- env \
     DEBUG_MODE=false \
@@ -176,15 +186,21 @@ mv -- "$APP_ROOT/dist" "$PREVIOUS_ROOT/dist"
 old_dist_moved=true
 mv -- "$APP_ROOT/server" "$PREVIOUS_ROOT/server"
 old_server_moved=true
+if [[ -e "$APP_ROOT/src" ]]; then
+  mv -- "$APP_ROOT/src" "$PREVIOUS_ROOT/src"
+  old_src_moved=true
+fi
 mv -- "$release_dir/dist" "$APP_ROOT/dist"
 new_dist_moved=true
 mv -- "$release_dir/server" "$APP_ROOT/server"
 new_server_moved=true
+mv -- "$release_dir/src" "$APP_ROOT/src"
+new_src_moved=true
 install -d -m 0750 -o www -g www "$APP_ROOT/server/data"
 if [[ -d "$PREVIOUS_ROOT/server/data" ]]; then
   cp -a "$PREVIOUS_ROOT/server/data/." "$APP_ROOT/server/data/"
 fi
-chown -R root:root "$APP_ROOT/dist" "$APP_ROOT/server"
+chown -R root:root "$APP_ROOT/dist" "$APP_ROOT/server" "$APP_ROOT/src"
 chown -R www:www "$APP_ROOT/server/data"
 chmod 0750 "$APP_ROOT/server/data"
 find "$APP_ROOT/server/data" -maxdepth 1 -type f -name '*.db' -exec chmod 0600 {} +
