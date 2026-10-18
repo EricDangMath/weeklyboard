@@ -1,0 +1,11 @@
+[Unit]
+Description=Check WeeklyBoard Git branch for updates every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=weeklyboard-auto-deploy.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=WeeklyBoard automatic Git deployment
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/weeklyboard-auto-deploy
