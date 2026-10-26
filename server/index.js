@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 import { registerAvailability } from './availability.js';
 import { deterministicSchedule } from './scheduler.js';
 import { registerCalendar } from './calendar.js';
+import { registerCalendarMoods } from './calendar-moods.js';
 import { registerCalendarPublish } from './calendar-publish.js';
 import { registerSubscriptions } from './subscriptions.js';
 import { registerDebugAuth } from './debug.js';
@@ -412,6 +413,7 @@ app.post('/api/plan/preview', auth, async (req, res) => {
 registerConfirmation(app, db, auth);
 registerSubscriptions(app, db, auth);
 registerCalendar(app, db, auth);
+registerCalendarMoods(app, db, auth);
 registerPomodoro(app, db, auth);
 app.get('/api/calendar', auth, (req, res) => {
   res.json(db.prepare('SELECT * FROM calendar_events WHERE user_id=? ORDER BY day,start_minute').all(req.user.id));
