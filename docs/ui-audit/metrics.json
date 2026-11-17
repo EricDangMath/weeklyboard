@@ -1,0 +1,1072 @@
+[
+  {
+    "name": "weeklyboard-1366x768",
+    "metrics": {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "document": {
+        "clientWidth": 1366,
+        "scrollWidth": 1366,
+        "scrollHeight": 770
+      },
+      "interactiveCount": 772,
+      "tabbableCount": 58,
+      "cellCount": 714,
+      "selectors": {
+        ".topbar": {
+          "x": 0,
+          "y": 0,
+          "width": 1366,
+          "height": 58,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(255, 253, 247)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.45)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".sidebar": {
+          "x": 0,
+          "y": 58,
+          "width": 260,
+          "height": 712,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.48)",
+          "borderColor": "rgb(58, 53, 48) rgba(151, 136, 112, 0.38) rgb(58, 53, 48) rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "auto",
+          "overflowY": "auto"
+        },
+        ".legend": {
+          "x": 260,
+          "y": 58,
+          "width": 1106,
+          "height": 79,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.92)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.3)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".tl-gutter": {
+          "x": 260,
+          "y": 137,
+          "width": 64,
+          "height": 1280,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(247, 242, 233, 0.98)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".day-head": {
+          "x": 325,
+          "y": 137,
+          "width": 146,
+          "height": 56,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.97)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.36)",
+          "fontSize": "14px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".day-grid": {
+          "x": 325,
+          "y": 193,
+          "width": 146,
+          "height": 1224,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.58)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".cell10": {
+          "x": 325,
+          "y": 193,
+          "width": 146,
+          "height": 12,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".event": {
+          "x": 330,
+          "y": 409,
+          "width": 136,
+          "height": 59,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(236, 233, 226)",
+          "borderColor": "rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgb(154, 148, 138)",
+          "fontSize": "11.5px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".modal-card": null,
+        ".cal-body": null
+      }
+    },
+    "logs": [
+      {
+        "type": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "type": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "type": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      }
+    ]
+  },
+  {
+    "name": "weeklyboard-1440x900",
+    "metrics": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "scrollHeight": 902
+      },
+      "interactiveCount": 772,
+      "tabbableCount": 58,
+      "cellCount": 714,
+      "selectors": {
+        ".topbar": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 58,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(255, 253, 247)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.45)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".sidebar": {
+          "x": 0,
+          "y": 58,
+          "width": 260,
+          "height": 844,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.48)",
+          "borderColor": "rgb(58, 53, 48) rgba(151, 136, 112, 0.38) rgb(58, 53, 48) rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "auto",
+          "overflowY": "auto"
+        },
+        ".legend": {
+          "x": 260,
+          "y": 58,
+          "width": 1180,
+          "height": 43,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.92)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.3)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".tl-gutter": {
+          "x": 260,
+          "y": 101,
+          "width": 64,
+          "height": 1280,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(247, 242, 233, 0.98)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".day-head": {
+          "x": 325,
+          "y": 101,
+          "width": 157,
+          "height": 56,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.97)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.36)",
+          "fontSize": "14px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".day-grid": {
+          "x": 325,
+          "y": 157,
+          "width": 157,
+          "height": 1224,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.58)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".cell10": {
+          "x": 325,
+          "y": 157,
+          "width": 157,
+          "height": 12,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".event": {
+          "x": 330,
+          "y": 373,
+          "width": 147,
+          "height": 59,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(236, 233, 226)",
+          "borderColor": "rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgb(154, 148, 138)",
+          "fontSize": "11.5px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".modal-card": null,
+        ".cal-body": null
+      }
+    },
+    "logs": [
+      {
+        "type": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "type": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "type": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      }
+    ]
+  },
+  {
+    "name": "weeklyboard-1920x1080",
+    "metrics": {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "document": {
+        "clientWidth": 1920,
+        "scrollWidth": 1920,
+        "scrollHeight": 1082
+      },
+      "interactiveCount": 772,
+      "tabbableCount": 58,
+      "cellCount": 714,
+      "selectors": {
+        ".topbar": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 58,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(255, 253, 247)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.45)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".sidebar": {
+          "x": 0,
+          "y": 58,
+          "width": 260,
+          "height": 1024,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.48)",
+          "borderColor": "rgb(58, 53, 48) rgba(151, 136, 112, 0.38) rgb(58, 53, 48) rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "auto",
+          "overflowY": "auto"
+        },
+        ".legend": {
+          "x": 260,
+          "y": 58,
+          "width": 1660,
+          "height": 43,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.92)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.3)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".tl-gutter": {
+          "x": 260,
+          "y": 101,
+          "width": 64,
+          "height": 1280,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(247, 242, 233, 0.98)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".day-head": {
+          "x": 325,
+          "y": 101,
+          "width": 226,
+          "height": 56,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.97)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.36)",
+          "fontSize": "14px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".day-grid": {
+          "x": 325,
+          "y": 157,
+          "width": 226,
+          "height": 1224,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.58)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".cell10": {
+          "x": 325,
+          "y": 157,
+          "width": 226,
+          "height": 12,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".event": {
+          "x": 330,
+          "y": 373,
+          "width": 216,
+          "height": 59,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(236, 233, 226)",
+          "borderColor": "rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgb(154, 148, 138)",
+          "fontSize": "11.5px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".modal-card": null,
+        ".cal-body": null
+      }
+    },
+    "logs": [
+      {
+        "type": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "type": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "type": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      }
+    ]
+  },
+  {
+    "name": "weeklyboard-390x844",
+    "metrics": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "clientWidth": 390,
+        "scrollWidth": 390,
+        "scrollHeight": 3385
+      },
+      "interactiveCount": 772,
+      "tabbableCount": 58,
+      "cellCount": 714,
+      "selectors": {
+        ".topbar": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 108,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(255, 253, 247)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.45)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".sidebar": {
+          "x": 0,
+          "y": 155,
+          "width": 390,
+          "height": 1777,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.48)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.42)",
+          "fontSize": "14px",
+          "overflowX": "auto",
+          "overflowY": "auto"
+        },
+        ".legend": {
+          "x": 0,
+          "y": 1932,
+          "width": 390,
+          "height": 153,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.92)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.3)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".tl-gutter": {
+          "x": 0,
+          "y": 2085,
+          "width": 64,
+          "height": 1280,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(247, 242, 233, 0.98)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".day-head": {
+          "x": 65,
+          "y": 2085,
+          "width": 129,
+          "height": 56,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.97)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.36)",
+          "fontSize": "14px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".day-grid": {
+          "x": 65,
+          "y": 2141,
+          "width": 129,
+          "height": 1224,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.58)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".cell10": {
+          "x": 65,
+          "y": 2141,
+          "width": 129,
+          "height": 12,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".event": {
+          "x": 70,
+          "y": 2357,
+          "width": 119,
+          "height": 59,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(236, 233, 226)",
+          "borderColor": "rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgb(154, 148, 138)",
+          "fontSize": "11.5px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".modal-card": null,
+        ".cal-body": null
+      }
+    },
+    "logs": [
+      {
+        "type": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "type": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "type": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      }
+    ]
+  },
+  {
+    "name": "calendar-1440x900",
+    "metrics": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "scrollHeight": 902
+      },
+      "interactiveCount": 782,
+      "tabbableCount": 68,
+      "cellCount": 714,
+      "selectors": {
+        ".topbar": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 58,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(255, 253, 247)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.45)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".sidebar": {
+          "x": 0,
+          "y": 58,
+          "width": 260,
+          "height": 844,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.48)",
+          "borderColor": "rgb(58, 53, 48) rgba(151, 136, 112, 0.38) rgb(58, 53, 48) rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "auto",
+          "overflowY": "auto"
+        },
+        ".legend": {
+          "x": 260,
+          "y": 58,
+          "width": 1180,
+          "height": 43,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.92)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.3)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".tl-gutter": {
+          "x": 260,
+          "y": 101,
+          "width": 64,
+          "height": 1280,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(247, 242, 233, 0.98)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".day-head": {
+          "x": 325,
+          "y": 101,
+          "width": 157,
+          "height": 56,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.97)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.36)",
+          "fontSize": "14px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".day-grid": {
+          "x": 325,
+          "y": 157,
+          "width": 157,
+          "height": 1224,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.58)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".cell10": {
+          "x": 325,
+          "y": 157,
+          "width": 157,
+          "height": 12,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".event": {
+          "x": 330,
+          "y": 373,
+          "width": 147,
+          "height": 59,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(236, 233, 226)",
+          "borderColor": "rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgb(154, 148, 138)",
+          "fontSize": "11.5px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".modal-card": null,
+        ".cal-body": {
+          "x": 0,
+          "y": 55,
+          "width": 1440,
+          "height": 845,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        }
+      }
+    },
+    "logs": [
+      {
+        "type": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "type": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "type": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      }
+    ]
+  },
+  {
+    "name": "event-modal-1440x900",
+    "metrics": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "scrollHeight": 902
+      },
+      "interactiveCount": 790,
+      "tabbableCount": 76,
+      "cellCount": 714,
+      "selectors": {
+        ".topbar": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 58,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(255, 253, 247)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.45)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".sidebar": {
+          "x": 0,
+          "y": 58,
+          "width": 260,
+          "height": 844,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.48)",
+          "borderColor": "rgb(58, 53, 48) rgba(151, 136, 112, 0.38) rgb(58, 53, 48) rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "auto",
+          "overflowY": "auto"
+        },
+        ".legend": {
+          "x": 260,
+          "y": 58,
+          "width": 1180,
+          "height": 43,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.92)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.3)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".tl-gutter": {
+          "x": 260,
+          "y": 101,
+          "width": 64,
+          "height": 1280,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(247, 242, 233, 0.98)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".day-head": {
+          "x": 325,
+          "y": 101,
+          "width": 157,
+          "height": 56,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.97)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.36)",
+          "fontSize": "14px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".day-grid": {
+          "x": 325,
+          "y": 157,
+          "width": 157,
+          "height": 1224,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.58)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".cell10": {
+          "x": 325,
+          "y": 157,
+          "width": 157,
+          "height": 12,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".event": {
+          "x": 330,
+          "y": 373,
+          "width": 147,
+          "height": 59,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(236, 233, 226)",
+          "borderColor": "rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgb(154, 148, 138)",
+          "fontSize": "11.5px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".modal-card": {
+          "x": 530,
+          "y": 163,
+          "width": 380,
+          "height": 574,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(255, 253, 247)",
+          "borderColor": "rgba(58, 53, 48, 0.88)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".cal-body": null
+      }
+    },
+    "logs": [
+      {
+        "type": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "type": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "type": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      }
+    ]
+  },
+  {
+    "name": "layer-popover-1440x900",
+    "metrics": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "scrollHeight": 902
+      },
+      "interactiveCount": 777,
+      "tabbableCount": 63,
+      "cellCount": 714,
+      "selectors": {
+        ".topbar": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 58,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(255, 253, 247)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.45)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".sidebar": {
+          "x": 0,
+          "y": 58,
+          "width": 260,
+          "height": 844,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.48)",
+          "borderColor": "rgb(58, 53, 48) rgba(151, 136, 112, 0.38) rgb(58, 53, 48) rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "auto",
+          "overflowY": "auto"
+        },
+        ".legend": {
+          "x": 260,
+          "y": 58,
+          "width": 1180,
+          "height": 43,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.92)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.3)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".tl-gutter": {
+          "x": 260,
+          "y": 101,
+          "width": 64,
+          "height": 1280,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(247, 242, 233, 0.98)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".day-head": {
+          "x": 325,
+          "y": 101,
+          "width": 157,
+          "height": 56,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.97)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.36)",
+          "fontSize": "14px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".day-grid": {
+          "x": 325,
+          "y": 157,
+          "width": 157,
+          "height": 1224,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.58)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".cell10": {
+          "x": 325,
+          "y": 157,
+          "width": 157,
+          "height": 12,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".event": {
+          "x": 330,
+          "y": 373,
+          "width": 147,
+          "height": 59,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(236, 233, 226)",
+          "borderColor": "rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgb(154, 148, 138)",
+          "fontSize": "11.5px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".modal-card": null,
+        ".cal-body": null
+      }
+    },
+    "logs": [
+      {
+        "type": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "type": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "type": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      }
+    ]
+  },
+  {
+    "name": "backup-popover-1440x900",
+    "metrics": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "scrollHeight": 902
+      },
+      "interactiveCount": 774,
+      "tabbableCount": 60,
+      "cellCount": 714,
+      "selectors": {
+        ".topbar": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 58,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(255, 253, 247)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.45)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".sidebar": {
+          "x": 0,
+          "y": 58,
+          "width": 260,
+          "height": 844,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.48)",
+          "borderColor": "rgb(58, 53, 48) rgba(151, 136, 112, 0.38) rgb(58, 53, 48) rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "auto",
+          "overflowY": "auto"
+        },
+        ".legend": {
+          "x": 260,
+          "y": 58,
+          "width": 1180,
+          "height": 43,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.92)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.3)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".tl-gutter": {
+          "x": 260,
+          "y": 101,
+          "width": 64,
+          "height": 1280,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(247, 242, 233, 0.98)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".day-head": {
+          "x": 325,
+          "y": 101,
+          "width": 157,
+          "height": 56,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.97)",
+          "borderColor": "rgb(58, 53, 48) rgb(58, 53, 48) rgba(151, 136, 112, 0.36)",
+          "fontSize": "14px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".day-grid": {
+          "x": 325,
+          "y": 157,
+          "width": 157,
+          "height": 1224,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(255, 253, 247, 0.58)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".cell10": {
+          "x": 325,
+          "y": 157,
+          "width": 157,
+          "height": 12,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(58, 53, 48)",
+          "fontSize": "14px",
+          "overflowX": "visible",
+          "overflowY": "visible"
+        },
+        ".event": {
+          "x": 330,
+          "y": 373,
+          "width": 147,
+          "height": 59,
+          "color": "rgb(58, 53, 48)",
+          "background": "rgb(236, 233, 226)",
+          "borderColor": "rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgba(102, 89, 70, 0.56) rgb(154, 148, 138)",
+          "fontSize": "11.5px",
+          "overflowX": "hidden",
+          "overflowY": "hidden"
+        },
+        ".modal-card": null,
+        ".cal-body": null
+      }
+    },
+    "logs": [
+      {
+        "type": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "type": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "type": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      }
+    ]
+  }
+]

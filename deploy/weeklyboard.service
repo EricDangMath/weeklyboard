@@ -1,0 +1,25 @@
+[Unit]
+Description=WeeklyBoard API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www
+Group=www
+WorkingDirectory=/www/wwwroot/zkb.yutianfu.me/server
+EnvironmentFile=/etc/weeklyboard/weeklyboard.env
+ExecStart=/www/server/nodejs/v24.11.0/bin/node index.js
+Restart=always
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/www/wwwroot/zkb.yutianfu.me/server/data
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

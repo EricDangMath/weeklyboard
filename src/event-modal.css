@@ -1,0 +1,3 @@
+.event-delete-options { border-top: 1px solid #d4cbbd; margin-top: 14px; padding-top: 12px; display: grid; gap: 10px; font-size: 13px; }
+.event-delete-options > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.event-delete-options .paper-btn, .modal-actions .paper-btn.danger { display: inline-flex; gap: 6px; align-items: center; }

@@ -1,0 +1,47 @@
+.mood-calendar .cal-months { max-width:680px; }
+.mood-calendar .cal-scroll { min-width:0; }
+.mood-calendar .cal-topbar .paper-btn { display:inline-flex; align-items:center; gap:6px; }
+.mood-month-nav { display:flex; align-items:center; gap:6px; }
+.mood-calendar .cal-day { min-width:0; height:82px; padding:0; border-radius:6px; }
+.mood-calendar .week-row { cursor:default; border-radius:6px; }
+.mood-calendar .mood-selected { background:rgba(219,179,85,.13); outline:1px dashed var(--yellow); outline-offset:-2px; }
+.mood-day-open { position:absolute; inset:0; display:flex; align-items:flex-start; justify-content:center; padding:8px 0 0; color:inherit; background:none; border:0; border-radius:6px; cursor:pointer; }
+.mood-calendar .cal-badges { z-index:1; position:absolute; top:36px; height:36px; max-width:100%; gap:1px; }
+.mood-calendar .cal-mood, .mood-add-day { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; padding:2px; width:32px; height:32px; border:0; background:none; border-radius:6px; }
+.mood-calendar .cal-mood, .mood-calendar .mood-sticker { touch-action:none; }
+.mood-drag-preview { position:fixed; z-index:150; display:flex; align-items:center; gap:5px; padding:6px 10px; border:1px solid var(--line-deep); border-radius:6px; background:var(--card); pointer-events:none; transform:translate(14px, -50%); font-size:12px; }
+.mood-calendar .cal-moon { font-size:11px; }
+.mood-add-day { color:var(--ink-soft); cursor:pointer; opacity:.45; }
+.mood-calendar .cal-day:hover .mood-add-day, .mood-add-day:focus-visible { opacity:1; background:var(--card); }
+.mood-date-row { display:flex; align-items:center; gap:5px; margin-bottom:10px; min-width:0; }
+.mood-date-row input { min-width:0; width:100%; padding:6px; font:inherit; font-size:12px; color:var(--ink); background:var(--paper); border:1px solid var(--line-deep); border-radius:5px; }
+.mood-date-row .icon-btn { width:30px; height:30px; flex-shrink:0; display:grid; place-items:center; }
+.mood-calendar .mood-sticker { min-width:0; height:78px; padding:5px 2px; border-radius:8px 4px; }
+.mood-calendar .mood-label { overflow-wrap:anywhere; letter-spacing:0; line-height:14px; min-height:28px; display:flex; align-items:center; justify-content:center; }
+.mood-calendar .caw-today-mood-name { font-size:20px; letter-spacing:0; }
+.mood-calendar .caw-today-face { border-radius:6px; }
+.mood-calendar .mood-face { flex-shrink:0; pointer-events:none; }
+.mood-calendar .caw-cell { width:100%; padding:0; color:inherit; border:0; cursor:pointer; }
+.mood-calendar .caw-cell.empty { border:1px dashed var(--line); }
+.mood-calendar button:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+.mood-calendar button:disabled { opacity:.5; cursor:wait; }
+.mood-trend-summary { display:flex; align-items:baseline; gap:6px; padding-bottom:10px; }
+.mood-trend-summary b { font-size:28px; font-weight:500; }
+.mood-trend-summary span { font-size:12px; color:var(--ink-soft); }
+.mood-save-status { min-height:20px; margin-top:8px; font-size:11px; color:var(--teal, #5A8A8E); }
+.mood-error { font-size:12px; color:#B23B2E; overflow-wrap:anywhere; }
+.mood-error .text-btn { font:inherit; text-decoration:underline; }
+#calendarMoodCheckin { scroll-margin-top:10px; }
+@media (max-width:560px) {
+  .mood-calendar .cal-topbar { flex-wrap:wrap; gap:8px; }
+  .mood-calendar .cal-title { font-size:20px; letter-spacing:0; }
+  .mood-calendar .cal-topbar .paper-btn { font-size:12px; padding:6px 8px; }
+  .mood-calendar .cal-title em { display:none; }
+  .mood-calendar .cal-day { height:85px; }
+  .mood-calendar .cal-badges { flex-wrap:wrap; justify-content:center; width:100%; height:auto; }
+  .mood-calendar .cal-badges .cal-moon { position:absolute; top:-2px; left:0; font-size:9px; pointer-events:none; }
+  .mood-calendar .cal-badges .cal-moon + .cal-moon { left:auto; right:0; }
+  .mood-calendar .cal-mood, .mood-add-day { width:36px; height:38px; }
+  .mood-calendar .cal-widgets { padding:12px; }
+  .mood-calendar .mood-sticker { height:78px; }
+}
