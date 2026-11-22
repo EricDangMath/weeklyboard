@@ -23,7 +23,7 @@ export default function EventModal({ taskOptions, value, setValue, save, remove,
       <label>日期<select value={value.day} onChange={(e) => setValue({ ...value, day: e.target.value })}>{days.map((day) => <option key={day}>{day}</option>)}</select></label>
       <span className="cat-label" id="event-color-label">颜色</span><div className="cat-picker" role="group" aria-labelledby="event-color-label">{categories.map((cat) => <button type="button" aria-label={cat.label} aria-pressed={value.cat === cat.id} className={`cat-option ${value.cat === cat.id ? 'selected' : ''}`} key={cat.id} title={cat.label} style={{ background: cat.color }} onClick={() => setValue({ ...value, cat: cat.id })} />)}</div>
       <label>图层<select value={value.layer || 'actual'} onChange={(e) => setValue({ ...value, layer: e.target.value })}>{layers.map((layer) => <option key={layer.id} value={layer.id}>{layer.label}</option>)}</select></label>
-      <label className="check-row"><input type="checkbox" checked={Boolean(value.repeat ?? (value.repeat_rule === 'weekly'))} onChange={(e) => setValue({ ...value, repeat: e.target.checked })} /><span>每周重复</span><span className="check-hint">勾选后每周同一时间自动出现</span></label>
+      <label className="check-row"><input type="checkbox" checked={Boolean(value.repeat ?? recurring)} onChange={(e) => setValue({ ...value, repeat: e.target.checked })} /><span>每周重复</span><span className="check-hint">勾选后每周同一时间自动出现</span></label>
       <label>备注<textarea rows="2" value={value.description || ''} onChange={(e) => setValue({ ...value, description: e.target.value })} placeholder="可选，例如教室地点、准备事项…" /></label>
       {deleteOpen && <div className="event-delete-options" role="group" aria-label="删除范围">
         <strong>删除这条日程？</strong>

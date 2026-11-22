@@ -6,7 +6,8 @@ import CalendarPublish from './CalendarPublish.jsx';
 import { EventCopyPreview } from './EventCopy.jsx';
 import CalendarEvent from './CalendarEvent.jsx';
 import EventModal from './EventModal.jsx';
-import { occursInWeek } from './calendar-occurrences.mjs';
+import { occursInWeek, hasWeeklyRecurrence, applyCalendarEdit } from './calendar-occurrences.mjs';
+import RecurringEditDialog from './RecurringEditDialog.jsx';
 import { eventCopyPayload } from './event-copy.mjs';
 import CalendarSubscriptions, { SubscriptionEvent } from './CalendarSubscriptions.jsx';
 import { DeadlineList, DeadlineBadge, DeadlineModal, DeadlineTimeMarkers } from './Deadlines.jsx';
@@ -127,6 +128,7 @@ function App() {
   const [layerOpen, setLayerOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
   const [eventModal, setEventModal] = useState(null);
+  const [pendingEventEdit, setPendingEventEdit] = useState(null);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [planVersion, setPlanVersion] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
@@ -370,6 +372,15 @@ function App() {
     setPlanVersion((value) => value + 1);
     return true;
   };
+  const commitEventEdit = async (source, patch, scope, week = currentWeekKey) => {
+    const query = scope ? `?scope=${scope}&week_key=${encodeURIComponent(week)}` : '';
+    const response = await call(`/calendar/events/${source.id}${query}`, { method: 'PATCH', body: JSON.stringify(patch) });
+    setEvents((items) => applyCalendarEdit(items, response, source.id));
+    return response;
+  };
+  const askEventEditScope = (source, patch, closeEditor = false) => {
+    setPendingEventEdit({ source, patch, closeEditor, week: currentWeekKey, label: `${fmtDate(weekStart)}–${fmtDate(addDays(weekStart, 6))}` });
+  };
   const saveEvent = async () => {
     if (!eventModal?.title?.trim()) return notify('日程标题不能为空');
     const localEvent = { ...eventModal, title: eventModal.title.trim(), start_minute: Number(eventModal.start_minute), end_minute: Number(eventModal.end_minute), category: eventModal.cat || activeCat, week_key: currentWeekKey };
@@ -380,8 +391,9 @@ function App() {
         setEventModal(null);
         notify('规划草案已更新，确认后才会写入 SQL');
       } else if (localEvent.id && !String(localEvent.id).startsWith('local-')) {
-        const response = await call(`/calendar/events/${localEvent.id}`, { method: 'PATCH', body: JSON.stringify(localEvent) });
-        setEvents((items) => items.map((item) => item.id === localEvent.id ? response : item));
+        const source = events.find((item) => item.id === localEvent.id);
+        if (source && hasWeeklyRecurrence(source)) { askEventEditScope(source, localEvent, true); return; }
+        await commitEventEdit(localEvent, localEvent);
         notify('日程已更新并写入 SQL');
       } else {
         const response = await call('/calendar/events', { method: 'POST', body: JSON.stringify(localEvent) });
@@ -409,11 +421,13 @@ function App() {
       notify(scope === 'week' ? '已删除本周日程' : scope === 'future' ? '已删除本次及以后的重复日程，之前的记录已保留' : '日程已删除');
     } catch (error) { notify(`删除失败：${error.message}`); }
   };
-  const persistEventMove = async (eventId, patch) => {
+  const persistEventMove = async (eventId, patch, original) => {
     if (!eventId || String(eventId).startsWith('plan-') || String(eventId).startsWith('fixed-')) return;
+    const source = original || events.find((item) => String(item.id) === String(eventId));
+    if (!source) return;
+    if (hasWeeklyRecurrence(source)) { askEventEditScope(source, patch); return; }
     try {
-      const saved = await call(`/calendar/events/${eventId}`, { method: 'PATCH', body: JSON.stringify(patch) });
-      setEvents((items) => items.map((item) => item.id === eventId ? saved : item));
+      await commitEventEdit(source, patch);
       notify('日程位置已保存');
     } catch (error) {
       notify(`移动失败：${error.message}`);
@@ -427,8 +441,7 @@ function App() {
       notify('草案位置已调整');
       return;
     }
-    setEvents((items) => items.map((item) => item.id === source.id ? { ...item, ...target } : item));
-    persistEventMove(source.id, target);
+    persistEventMove(source.id, target, source);
   };
   const onDropToGrid = (event, day, minute) => {
     event.preventDefault();
@@ -447,8 +460,7 @@ function App() {
       if (!current || current.locked) return notify(current?.locked ? '锁定日程不可移动' : '找不到要移动的日程');
       const duration = Math.max(CELL_MIN, Number(current.end_minute) - Number(current.start_minute));
       const patch = { day, start_minute: targetStart, end_minute: Math.min(timelineRange.end, targetStart + duration) };
-      setEvents((items) => items.map((item) => item.id === current.id ? { ...item, ...patch } : item));
-      persistEventMove(current.id, patch);
+      persistEventMove(current.id, patch, current);
       return;
     }
     if (raw.startsWith('task:')) { const task = tasks.find((item) => String(item.id) === raw.slice(5)); if (task) addEvent(day, minute, { title: task.title, duration: task.estimate_minutes || 30, task_id: task.id, cat: task.title.includes('作业') ? 'study' : 'class' }); }
@@ -467,18 +479,18 @@ function App() {
     const next = Math.max(Number(current.start_minute) + CELL_MIN, Math.min(timelineRange.end, Math.round(endMinute / CELL_MIN) * CELL_MIN));
     setEvents((items) => items.map((item) => item.id === current.id ? { ...item, end_minute: next } : item));
   };
-  const finishResize = async (eventId, endMinute) => {
+  const finishResize = async (eventId, endMinute, original) => {
     if (String(eventId).startsWith('plan-')) { notify('草案时长已调整，确认后才会写入 SQL'); return; }
-    const current = events.find((item) => String(item.id) === String(eventId));
+    const current = original || events.find((item) => String(item.id) === String(eventId));
     if (!current || current.locked) return notify('锁定日程不可调整');
-    await persistEventMove(current.id, { end_minute: Math.max(Number(current.start_minute) + CELL_MIN, Math.min(timelineRange.end, Math.round(endMinute / CELL_MIN) * CELL_MIN)) });
+    setEvents((items) => items.map((item) => item.id === current.id ? { ...item, end_minute: current.end_minute } : item));
+    await persistEventMove(current.id, { end_minute: Math.max(Number(current.start_minute) + CELL_MIN, Math.min(timelineRange.end, Math.round(endMinute / CELL_MIN) * CELL_MIN)) }, current);
   };
   const resizeEvent = async (eventId, endMinute) => {
     const current = events.find((item) => String(item.id) === String(eventId));
     if (!current || current.locked) return notify('锁定日程不可调整');
     const patch = { end_minute: Math.max(Number(current.start_minute) + CELL_MIN, Math.min(timelineRange.end, Math.round(endMinute / CELL_MIN) * CELL_MIN)) };
-    setEvents((items) => items.map((item) => item.id === current.id ? { ...item, ...patch } : item));
-    await persistEventMove(current.id, patch);
+    await persistEventMove(current.id, patch, current);
   };
   const paint = async (dayIndex, minute) => {
     if (!visibleLayers.length) return notify('请先勾选一个图层');
@@ -537,7 +549,7 @@ function App() {
   if (!token) return <Auth email={email} setEmail={setEmail} password={password} setPassword={setPassword} mode={authMode} setMode={setAuthMode} submit={authenticate} />;
   const displayTasks = tasks.map((task) => { const row = pomodoro.data?.rows.find((row) => row.task_id === task.id); return row ? { ...task, status: row.complete ? 'done' : 'todo', pomodoro: pomodoro.enabled ? row : undefined } : task; });
   const timeReview = pomodoro.enabled && pomodoro.data ? { ...review, tasks: { ...review?.tasks, completion_rate: pomodoro.data.total.percent / 100 } } : review;
-  return <div className="app"><Topbar visibleLayers={visibleLayers} toggleLayer={toggleLayer} subscriptions={<><CalendarSubscriptions layers={LAYERS} call={call} onChanged={subscriptionChanged} notify={notify} /><CalendarPublish layers={LAYERS} call={call} api={API} notify={notify} /></>} pomodoro={pomodoro} weekStart={weekStart} setWeekStart={setWeekStart} setCalendarOpen={setCalendarOpen} layerOpen={layerOpen} setLayerOpen={setLayerOpen} backupOpen={backupOpen} setBackupOpen={setBackupOpen} activeLayer={activeLayer} setActiveLayer={setActiveLayer} debugMode={debugMode} email={email} onImport={importICS} onExportICS={exportICS} onBackup={exportBackup} onRestore={restoreBackup} logout={logout} /><div className="board"><a className="mobile-board-jump" href="#weekTimeline">↓ 查看本周时间轴</a><Sidebar {...{ pomodoro, projects, project, selectProject, newProject, setNewProject, projectDescription, setProjectDescription, createProject, tasks: displayTasks, newTask, setNewTask, createTask, toggleTask, removeTask, inbox, newInbox, setNewInbox, addInboxItem, removeInbox, convertInbox, nightDraft, setNightDraft, deadlineDraft, setDeadlineDraft, windowStart, setWindowStart, windowEnd, setWindowEnd, saveAvailability, fixedDraft, setFixedDraft, saveFixed, stats, statsLayer, setStatsLayer, review, makePlan, busy, confirmPlan, currentWeekNights, currentWeekDeadlines, removeNight, removeDeadline, toggleDeadline, openDeadline: setDeadlineId, onOpenTemplates: () => setShowTemplates(true), onOpenGuide: () => { setGuideStep(0); setShowGuide(true); } }} /><main className="timeline-pane"><PomodoroPanel controller={pomodoro} categories={CATS} /><Legend activeCat={activeCat} setActiveCat={setActiveCat} activeLayer={activeLayer} setActiveLayer={setActiveLayer} /><LayerControls layers={LAYERS} visibleLayers={visibleLayers} activeLayer={activeLayer} onToggle={toggleLayer} onSelect={setActiveLayer} /><TimelineZoom><Timeline onMove={moveEvent} onCopy={copyEvent} visibleLayers={visibleLayers} timeRange={timelineRange} weekStart={weekStart} events={visibleEvents} fills={fills} currentWeekKey={currentWeekKey} activeLayer={activeLayer} activeCat={activeCat} onPaint={paint} onDrop={onDropToGrid} onOpenEvent={(event) => setEventModal(event)} onCreate={addEvent} onResizePreview={previewResize} onResizeEnd={finishResize} nights={currentWeekNights} deadlines={timelineDeadlines} onOpenDeadline={(item) => setDeadlineId(item.id)} onRemoveNight={removeNight} onRemoveDeadline={removeDeadline} /></TimelineZoom></main></div>{calendarOpen && <CalendarView month={calendarMonth} setMonth={setCalendarMonth} weekStart={weekStart} setWeekStart={setWeekStart} close={() => setCalendarOpen(false)} nights={currentWeekNights} deadlines={deadlines} onOpenDeadline={(item) => setDeadlineId(item.id)} onToggleDeadline={toggleDeadline} review={timeReview} call={call} notify={notify} />}{selectedDeadline && <DeadlineModal item={selectedDeadline} onClose={() => setDeadlineId(null)} onToggle={toggleDeadline} onKind={changeDeadlineKind} />}{eventModal?.subscription_id ? <SubscriptionEvent event={eventModal} close={() => setEventModal(null)} /> : eventModal && <EventModal days={DAYS} categories={CATS} layers={LAYERS} taskOptions={pomodoro.enabled ? pomodoro.data?.rows.filter((row) => row.task_id) || [] : []} value={eventModal} setValue={setEventModal} save={saveEvent} remove={deleteEvent} close={() => setEventModal(null)} />}{showTemplates && <TemplateModal templates={TEMPLATES} busy={busy} onSelect={applyTemplate} onClose={() => setShowTemplates(false)} />}{showGuide && <GuideModal step={guideStep} onStep={setGuideStep} onClose={() => setShowGuide(false)} />}{toast && <div className="toast" role="status" aria-live="polite">{toast}</div>}</div>;
+  return <div className="app"><Topbar visibleLayers={visibleLayers} toggleLayer={toggleLayer} subscriptions={<><CalendarSubscriptions layers={LAYERS} call={call} onChanged={subscriptionChanged} notify={notify} /><CalendarPublish layers={LAYERS} call={call} api={API} notify={notify} /></>} pomodoro={pomodoro} weekStart={weekStart} setWeekStart={setWeekStart} setCalendarOpen={setCalendarOpen} layerOpen={layerOpen} setLayerOpen={setLayerOpen} backupOpen={backupOpen} setBackupOpen={setBackupOpen} activeLayer={activeLayer} setActiveLayer={setActiveLayer} debugMode={debugMode} email={email} onImport={importICS} onExportICS={exportICS} onBackup={exportBackup} onRestore={restoreBackup} logout={logout} /><div className="board"><a className="mobile-board-jump" href="#weekTimeline">↓ 查看本周时间轴</a><Sidebar {...{ pomodoro, projects, project, selectProject, newProject, setNewProject, projectDescription, setProjectDescription, createProject, tasks: displayTasks, newTask, setNewTask, createTask, toggleTask, removeTask, inbox, newInbox, setNewInbox, addInboxItem, removeInbox, convertInbox, nightDraft, setNightDraft, deadlineDraft, setDeadlineDraft, windowStart, setWindowStart, windowEnd, setWindowEnd, saveAvailability, fixedDraft, setFixedDraft, saveFixed, stats, statsLayer, setStatsLayer, review, makePlan, busy, confirmPlan, currentWeekNights, currentWeekDeadlines, removeNight, removeDeadline, toggleDeadline, openDeadline: setDeadlineId, onOpenTemplates: () => setShowTemplates(true), onOpenGuide: () => { setGuideStep(0); setShowGuide(true); } }} /><main className="timeline-pane"><PomodoroPanel controller={pomodoro} categories={CATS} /><Legend activeCat={activeCat} setActiveCat={setActiveCat} activeLayer={activeLayer} setActiveLayer={setActiveLayer} /><LayerControls layers={LAYERS} visibleLayers={visibleLayers} activeLayer={activeLayer} onToggle={toggleLayer} onSelect={setActiveLayer} /><TimelineZoom><Timeline onMove={moveEvent} onCopy={copyEvent} visibleLayers={visibleLayers} timeRange={timelineRange} weekStart={weekStart} events={visibleEvents} fills={fills} currentWeekKey={currentWeekKey} activeLayer={activeLayer} activeCat={activeCat} onPaint={paint} onDrop={onDropToGrid} onOpenEvent={(event) => setEventModal(event)} onCreate={addEvent} onResizePreview={previewResize} onResizeEnd={finishResize} nights={currentWeekNights} deadlines={timelineDeadlines} onOpenDeadline={(item) => setDeadlineId(item.id)} onRemoveNight={removeNight} onRemoveDeadline={removeDeadline} /></TimelineZoom></main></div>{calendarOpen && <CalendarView month={calendarMonth} setMonth={setCalendarMonth} weekStart={weekStart} setWeekStart={setWeekStart} close={() => setCalendarOpen(false)} nights={currentWeekNights} deadlines={deadlines} onOpenDeadline={(item) => setDeadlineId(item.id)} onToggleDeadline={toggleDeadline} review={timeReview} call={call} notify={notify} />}{selectedDeadline && <DeadlineModal item={selectedDeadline} onClose={() => setDeadlineId(null)} onToggle={toggleDeadline} onKind={changeDeadlineKind} />}{eventModal?.subscription_id ? <SubscriptionEvent event={eventModal} close={() => setEventModal(null)} /> : eventModal && <EventModal days={DAYS} categories={CATS} layers={LAYERS} taskOptions={pomodoro.enabled ? pomodoro.data?.rows.filter((row) => row.task_id) || [] : []} value={eventModal} setValue={setEventModal} save={saveEvent} remove={deleteEvent} close={() => setEventModal(null)} />}{showTemplates && <TemplateModal templates={TEMPLATES} busy={busy} onSelect={applyTemplate} onClose={() => setShowTemplates(false)} />}{showGuide && <GuideModal step={guideStep} onStep={setGuideStep} onClose={() => setShowGuide(false)} />}{pendingEventEdit && <RecurringEditDialog source={pendingEventEdit.source} patch={pendingEventEdit.patch} weekLabel={pendingEventEdit.label} onClose={() => setPendingEventEdit(null)} onApply={async (scope) => { await commitEventEdit(pendingEventEdit.source, pendingEventEdit.patch, scope, pendingEventEdit.week); if (pendingEventEdit.closeEditor) setEventModal(null); setPendingEventEdit(null); notify(scope === 'week' ? '已只修改本周日程' : '已修改本次及以后的重复日程，之前的记录已保留'); }} />}{toast && <div className="toast" role="status" aria-live="polite">{toast}</div>}</div>;
 }
 
 function Auth({ loading, email, setEmail, password, setPassword, mode, setMode, submit }) { return <div className="auth-screen"><div className="auth-paper sketchy"><div className="auth-brand"><StarIcon /><div><h1>周看板</h1><span>Weekly Planner</span></div></div>{loading ? <><p className="auth-lead">正在启动调试工作区…</p><span className="debug-badge">DEBUG MODE · SQL DATABASE</span></> : <><p className="auth-lead">把目标，变成这一周能执行的计划。</p><label className="field-label">邮箱<input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" /></label><label className="field-label">密码<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="至少 8 位" /></label><button className="paper-btn primary wide" onClick={submit}>{mode === 'login' ? '进入工作台' : '创建账号'}</button><button className="text-btn" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>{mode === 'login' ? '还没有账号？创建一个' : '已有账号，直接登录'}</button></>}</div></div>; }

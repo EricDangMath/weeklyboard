@@ -1,5 +1,5 @@
 import { parseCalendar } from './calendar-feed.js';
-import { excludedWeeks, occursInWeek, recurrenceEndWeek } from '../src/calendar-occurrences.mjs';
+import { excludedWeeks, occursInWeek, recurrenceEndWeek, hasWeeklyRecurrence } from '../src/calendar-occurrences.mjs';
 
 const DAY_NAMES = ['周一','周二','周三','周四','周五','周六','周日'];
 const DAYS = new Set(DAY_NAMES);
@@ -131,10 +131,7 @@ export function registerCalendar(app, db, auth) {
     if (!validTask(req.user.id, body.task_id)) return res.status(400).json({ error: 'invalid task_id' });
     const repeatRule = Object.hasOwn(req.body || {}, 'repeat') ? (req.body.repeat ? 'weekly' : null) : body.repeat_rule || null;
     if (!DAYS.has(body.day) || typeof body.title !== 'string' || !body.title.trim() || !Number.isInteger(Number(body.start_minute)) || !Number.isInteger(Number(body.end_minute)) || Number(body.start_minute) < 0 || Number(body.end_minute) > 1440 || Number(body.start_minute) >= Number(body.end_minute) || !isWeekKey(body.week_key ?? null)) return res.status(400).json({ error: 'invalid calendar event' });
-    db.prepare(`UPDATE calendar_events SET
-      title=?,day=?,start_minute=?,end_minute=?,locked=?,category=?,description=?,layer=?,week_key=?,repeat_rule=?,source=?,task_id=?
-      WHERE id=? AND user_id=?
-    `).run(
+    const fields = [
       body.title.trim().slice(0, 200),
       body.day,
       Number(body.start_minute),
@@ -147,9 +144,48 @@ export function registerCalendar(app, db, auth) {
       repeatRule,
       String(body.source || existing.source || 'calendar').slice(0, 32),
       body.task_id ?? null,
-      existing.id,
-      req.user.id,
-    );
+    ];
+    const scope = req.query.scope;
+    if (scope !== undefined && !['week', 'future'].includes(scope)) return res.status(400).json({ error: 'invalid edit scope' });
+    if (scope) {
+      const week = req.query.week_key;
+      if (!week || !isWeekKey(week)) return res.status(400).json({ error: 'invalid week_key' });
+      if (!occursInWeek(existing, week)) return res.status(409).json({ error: '该周的日程已更改，请刷新后重试' });
+      if (hasWeeklyRecurrence(existing)) {
+        const result = db.transaction(() => {
+          const exclusions = excludedWeeks(existing);
+          const end = recurrenceEndWeek(existing);
+          const next = [...fields];
+          next[8] = week;
+          next[9] = scope === 'future' && next[7] !== 'actual'
+            ? (Object.hasOwn(req.body || {}, 'repeat') ? (req.body.repeat ? 'weekly' : null) : existing.repeat_rule || 'weekly') : null;
+          next[10] = 'calendar';
+          if (scope === 'week') {
+            db.prepare('UPDATE calendar_events SET excluded_weeks=? WHERE id=? AND user_id=?')
+              .run(JSON.stringify([...exclusions, week].sort()), existing.id, req.user.id);
+          } else {
+            db.prepare('UPDATE calendar_events SET ends_before_week=? WHERE id=? AND user_id=?').run(week, existing.id, req.user.id);
+          }
+          const created = db.prepare(`INSERT INTO calendar_events(
+            user_id,title,day,start_minute,end_minute,locked,category,description,layer,week_key,repeat_rule,source,task_id,
+            all_day,starts_on_week,ends_before_week,excluded_weeks
+          ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+            req.user.id, ...next, existing.all_day || 0, next[9] === 'weekly' ? week : null,
+            scope === 'future' ? end : null, JSON.stringify(scope === 'future' ? exclusions.filter((value) => value >= week) : []),
+          );
+          return {
+            scope, week_key: week,
+            event: db.prepare('SELECT * FROM calendar_events WHERE id=? AND user_id=?').get(existing.id, req.user.id),
+            replacement: db.prepare('SELECT * FROM calendar_events WHERE id=? AND user_id=?').get(created.lastInsertRowid, req.user.id),
+          };
+        })();
+        return res.json(result);
+      }
+    }
+    db.prepare(`UPDATE calendar_events SET
+      title=?,day=?,start_minute=?,end_minute=?,locked=?,category=?,description=?,layer=?,week_key=?,repeat_rule=?,source=?,task_id=?
+      WHERE id=? AND user_id=?
+    `).run(...fields, existing.id, req.user.id);
     res.json(db.prepare('SELECT * FROM calendar_events WHERE id=?').get(existing.id));
   });
   app.delete('/api/calendar/events/:id', auth, (req, res) => {

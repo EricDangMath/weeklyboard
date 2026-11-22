@@ -7,6 +7,8 @@ export function excludedWeeks(event) {
 }
 
 export function occursInWeek(event, week) {
+  const start = recurrenceStartWeek(event);
+  if (start && week < start) return false;
   const end = recurrenceEndWeek(event);
   if (end && week >= end) return false;
   if (excludedWeeks(event).includes(week)) return false;
@@ -16,4 +18,17 @@ export function occursInWeek(event, week) {
 // Exclusive boundary: occurrences before this ISO week remain unchanged.
 export function recurrenceEndWeek(event) {
   return validWeekKey(event.ends_before_week) ? event.ends_before_week : null;
+}
+
+export function recurrenceStartWeek(event) {
+  return validWeekKey(event.starts_on_week) ? event.starts_on_week : null;
+}
+
+export function hasWeeklyRecurrence(event) {
+  return !event.week_key || (event.repeat_rule === 'weekly' && event.layer !== 'actual');
+}
+
+export function applyCalendarEdit(events, result, id) {
+  if (!result.replacement) return events.map((event) => event.id === id ? result : event);
+  return [...events.filter((event) => event.id !== id && event.id !== result.replacement.id), result.event, result.replacement];
 }

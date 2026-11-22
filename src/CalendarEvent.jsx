@@ -19,7 +19,7 @@ function ResizeHandle({ event, range, interval, pixelsPerMinute, onPreview, onEn
       e.preventDefault(); e.stopPropagation();
       if (e.key === 'Enter' || e.key === ' ') return onOpen(event);
       const end = clamp(e.key === 'Home' ? Number(event.start_minute) + interval : e.key === 'End' ? range.end : Number(event.end_minute) + (e.key === 'ArrowUp' ? -interval : interval));
-      onPreview?.(event.id, end); onEnd?.(event.id, end);
+      onPreview?.(event.id, end); onEnd?.(event.id, end, event);
     }}
     onPointerDown={(down) => {
       if (down.button !== 0) return;
@@ -42,7 +42,7 @@ function ResizeHandle({ event, range, interval, pixelsPerMinute, onPreview, onEn
         if (moved) suppressClickUntil.current = Date.now() + 250;
         cleanup.current = null;
       };
-      const up = (e) => { if (e.pointerId !== down.pointerId) return; clear(); if (moved && currentEnd !== initialEnd) onEnd?.(event.id, currentEnd); };
+      const up = (e) => { if (e.pointerId !== down.pointerId) return; clear(); if (moved && currentEnd !== initialEnd) onEnd?.(event.id, currentEnd, event); };
       const cancel = () => { clear(); if (moved) onPreview?.(event.id, initialEnd); };
       handle.setPointerCapture(down.pointerId); handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up);
       handle.addEventListener('pointercancel', cancel); handle.addEventListener('lostpointercapture', cancel); cleanup.current = clear;

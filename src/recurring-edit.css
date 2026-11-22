@@ -1,0 +1,9 @@
+.recurring-edit-mask { z-index:160; }
+.recurring-edit-card { width:min(430px, calc(100vw - 28px)); }
+.recurring-edit-summary { display:grid; gap:7px; margin:18px 0; min-width:0; }
+.recurring-edit-summary strong { font-size:16px; font-weight:600; overflow-wrap:anywhere; }
+.recurring-edit-summary span { font-size:12px; color:var(--ink-soft); }
+.recurring-edit-actions { display:grid; gap:12px; }
+.recurring-edit-actions .paper-btn { display:flex; align-items:center; gap:10px; width:100%; min-height:48px; white-space:normal; text-align:left; font-size:14px; }
+.recurring-edit-actions .paper-btn svg { flex-shrink:0; }
+.recurring-edit-error { color:#B23B2E; font-size:12px; overflow-wrap:anywhere; }

@@ -2,7 +2,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypt
 import ical from 'ical-generator';
 import { getVtimezoneComponent } from '@touch4it/ical-timezones';
 import { Temporal } from 'temporal-polyfill';
-import { excludedWeeks, recurrenceEndWeek } from '../src/calendar-occurrences.mjs';
+import { excludedWeeks, recurrenceEndWeek, recurrenceStartWeek } from '../src/calendar-occurrences.mjs';
 
 const DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 const LAYERS = ['fixed', 'flex', 'once', 'actual'];
@@ -17,7 +17,7 @@ function monday(week, fallback) {
 
 function dateFor(row, anchor) {
   if (row.external_date) return Temporal.PlainDate.from(row.external_date);
-  return monday(row.week_key, anchor).add({ days: Math.max(0, DAYS.indexOf(row.day)) });
+  return monday(recurrenceStartWeek(row) || row.week_key, anchor).add({ days: Math.max(0, DAYS.indexOf(row.day)) });
 }
 
 function zoned(date, minute, timezone) {
@@ -57,7 +57,7 @@ export function buildPublishedCalendar(profile, events, fixed = [], deadlines = 
         freq: 'WEEKLY',
         ...(endDate ? { until: new Date((allDay ? Date.parse(`${endDate}T00:00:00Z`) : Number(zoned(endDate, 0, profile.timezone).epochMilliseconds)) - 1000) } : {}),
         ...(exclusions.length ? { exclude: exclusions.map((week) => {
-          const day = dateFor({ ...row, external_date: null, week_key: week }, profile.anchor_date);
+          const day = dateFor({ ...row, external_date: null, starts_on_week: null, week_key: week }, profile.anchor_date);
           return allDay ? new Date(`${day}T00:00:00Z`) : zoned(day, minute, profile.timezone);
         }) } : {}),
       } : null,
