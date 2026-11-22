@@ -1,5 +1,5 @@
 import { parseCalendar } from './calendar-feed.js';
-import { excludedWeeks, occursInWeek } from '../src/calendar-occurrences.mjs';
+import { excludedWeeks, occursInWeek, recurrenceEndWeek } from '../src/calendar-occurrences.mjs';
 
 const DAY_NAMES = ['周一','周二','周三','周四','周五','周六','周日'];
 const DAYS = new Set(DAY_NAMES);
@@ -157,7 +157,19 @@ export function registerCalendar(app, db, auth) {
     if (!existing) return res.status(404).json({ error: 'calendar event not found' });
     if (existing?.subscription_id) return res.status(409).json({ error: '请在订阅管理中取消订阅，或在来源日历删除此日程' });
     const scope = req.query.scope || 'all';
-    if (!['week', 'all'].includes(scope)) return res.status(400).json({ error: 'invalid deletion scope' });
+    if (!['week', 'future', 'all'].includes(scope)) return res.status(400).json({ error: 'invalid deletion scope' });
+    if (scope === 'future') {
+      const week = req.query.week_key;
+      if (!week || !isWeekKey(week)) return res.status(400).json({ error: 'invalid week_key' });
+      const end = recurrenceEndWeek(existing);
+      const recurring = !existing.week_key || (existing.repeat_rule === 'weekly' && existing.layer !== 'actual');
+      if (recurring) {
+        // Retries or requests after an earlier cutoff must never restore occurrences.
+        if (!end || week < end) db.prepare('UPDATE calendar_events SET ends_before_week=? WHERE id=? AND user_id=?').run(week, existing.id, req.user.id);
+        return res.json({ scope, week_key: week, event: db.prepare('SELECT * FROM calendar_events WHERE id=? AND user_id=?').get(existing.id, req.user.id) });
+      }
+      if (existing.week_key !== week) return res.status(404).json({ error: '该周没有这条日程' });
+    }
     if (scope === 'week') {
       const week = req.query.week_key;
       if (!week || !isWeekKey(week)) return res.status(400).json({ error: 'invalid week_key' });

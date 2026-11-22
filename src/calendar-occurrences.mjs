@@ -7,6 +7,13 @@ export function excludedWeeks(event) {
 }
 
 export function occursInWeek(event, week) {
+  const end = recurrenceEndWeek(event);
+  if (end && week >= end) return false;
   if (excludedWeeks(event).includes(week)) return false;
   return !event.week_key || event.week_key === week || (event.repeat_rule === 'weekly' && event.layer !== 'actual');
+}
+
+// Exclusive boundary: occurrences before this ISO week remain unchanged.
+export function recurrenceEndWeek(event) {
+  return validWeekKey(event.ends_before_week) ? event.ends_before_week : null;
 }

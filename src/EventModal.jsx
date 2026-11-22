@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarX, Trash2 } from 'lucide-react';
+import { CalendarClock, CalendarX, Trash2 } from 'lucide-react';
 import './event-modal.css';
 
 const formatTime = (minute) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
@@ -27,7 +27,7 @@ export default function EventModal({ taskOptions, value, setValue, save, remove,
       <label>备注<textarea rows="2" value={value.description || ''} onChange={(e) => setValue({ ...value, description: e.target.value })} placeholder="可选，例如教室地点、准备事项…" /></label>
       {deleteOpen && <div className="event-delete-options" role="group" aria-label="删除范围">
         <strong>删除这条日程？</strong>
-        <div><button className="paper-btn" disabled={deleting} onClick={() => deleteScope('week')}><CalendarX size={16} />只删除本周</button><button className="paper-btn danger" disabled={deleting} onClick={() => deleteScope('all')}><Trash2 size={16} />{recurring ? '删除全部重复' : '删除日程'}</button><button className="text-btn" disabled={deleting} onClick={() => setDeleteOpen(false)}>取消删除</button></div>
+        <div><button className="paper-btn" disabled={deleting} onClick={() => deleteScope('week')}><CalendarX size={16} />只删除本周</button>{recurring && <button className="paper-btn danger" disabled={deleting} onClick={() => deleteScope('future')}><CalendarClock size={16} />删除本次及以后</button>}<button className="paper-btn danger" disabled={deleting} onClick={() => deleteScope('all')}><Trash2 size={16} />{recurring ? '删除全部重复' : '删除日程'}</button><button className="text-btn" disabled={deleting} onClick={() => setDeleteOpen(false)}>取消删除</button></div>
       </div>}
       <div className="modal-actions">{value.id && !deleteOpen && <button className="paper-btn danger" disabled={deleting} onClick={() => setDeleteOpen(true)}><Trash2 size={15} />删除</button>}<span className="spacer" /><button className="paper-btn" disabled={deleting} onClick={close}>取消</button><button className="paper-btn primary" disabled={deleting || deleteOpen} onClick={save}>保存</button></div>
     </div>

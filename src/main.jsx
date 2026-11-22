@@ -402,11 +402,11 @@ function App() {
       return;
     }
     try {
-      const query = scope === 'week' ? `?scope=week&week_key=${encodeURIComponent(currentWeekKey)}` : '?scope=all';
+      const query = ['week', 'future'].includes(scope) ? `?scope=${scope}&week_key=${encodeURIComponent(currentWeekKey)}` : '?scope=all';
       const result = await call(`/calendar/events/${eventModal.id}${query}`, { method: 'DELETE' });
       setEvents((items) => result.event ? items.map((item) => item.id === eventModal.id ? result.event : item) : items.filter((item) => item.id !== eventModal.id));
       setEventModal(null);
-      notify(scope === 'week' ? '已删除本周日程' : '日程已删除');
+      notify(scope === 'week' ? '已删除本周日程' : scope === 'future' ? '已删除本次及以后的重复日程，之前的记录已保留' : '日程已删除');
     } catch (error) { notify(`删除失败：${error.message}`); }
   };
   const persistEventMove = async (eventId, patch) => {

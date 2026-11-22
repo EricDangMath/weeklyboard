@@ -2,7 +2,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypt
 import ical from 'ical-generator';
 import { getVtimezoneComponent } from '@touch4it/ical-timezones';
 import { Temporal } from 'temporal-polyfill';
-import { excludedWeeks } from '../src/calendar-occurrences.mjs';
+import { excludedWeeks, recurrenceEndWeek } from '../src/calendar-occurrences.mjs';
 
 const DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 const LAYERS = ['fixed', 'flex', 'once', 'actual'];
@@ -33,6 +33,9 @@ export function buildPublishedCalendar(profile, events, fixed = [], deadlines = 
   const create = (row) => {
     if (!layers.includes(row.layer) || (row.deadline_kind && !profile.include_deadlines)) return;
     const date = dateFor(row, profile.anchor_date);
+    const endWeek = recurrenceEndWeek(row);
+    const endDate = endWeek ? monday(endWeek, profile.anchor_date) : null;
+    if (endDate && Temporal.PlainDate.compare(date, endDate) >= 0) return;
     const allDay = row.deadline_kind ? row.due_minute == null : Boolean(row.all_day);
     const minute = row.deadline_kind ? row.due_minute : Number(row.start_minute);
     const endMinute = row.deadline_kind ? minute : Number(row.end_minute);
@@ -52,6 +55,7 @@ export function buildPublishedCalendar(profile, events, fixed = [], deadlines = 
       sequence: Number(row.sequence || 0) + profile.revision,
       repeating: row.repeat_rule === 'weekly' && row.layer !== 'actual' ? {
         freq: 'WEEKLY',
+        ...(endDate ? { until: new Date((allDay ? Date.parse(`${endDate}T00:00:00Z`) : Number(zoned(endDate, 0, profile.timezone).epochMilliseconds)) - 1000) } : {}),
         ...(exclusions.length ? { exclude: exclusions.map((week) => {
           const day = dateFor({ ...row, external_date: null, week_key: week }, profile.anchor_date);
           return allDay ? new Date(`${day}T00:00:00Z`) : zoned(day, minute, profile.timezone);
